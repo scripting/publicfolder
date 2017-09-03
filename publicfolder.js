@@ -18,7 +18,7 @@ let config = {
 	queueFname: "stats/queue.json",
 	flWriteQueue: true,
 	maxLogLength: 500,
-	maxConcurrentThreads: 25,
+	maxConcurrentUploads: 3,
 	minSizeForBlockUpload: 1024 * 1024 * 5 //5MB
 	};
 const fnameConfig = "config.json";
@@ -60,7 +60,6 @@ function s3UploadBigFile (f, s3path, type, acl, callback) {
 		});
 	}
 function readConfig (f, config, callback) {
-	console.log ("readConfig: f == " + f); 
 	utils.sureFilePath (f, function () {
 		fs.readFile (f, function (err, data) {
 			if (!err) {
@@ -164,7 +163,7 @@ function okToUpload (f) {
 		writeLog ();
 		}
 //the queue
-	let queue = new Array (), ctConcurrentThreads = 0, flQueueChanged = false;
+	let queue = new Array (), ctConcurrentUploads = 0, flQueueChanged = false;
 	let uploadingNow = new Object (); //helps us keep from uploading a file twice
 	
 	function addToQueue (operation, path) {
@@ -188,7 +187,7 @@ function okToUpload (f) {
 			}
 		}
 	function processQueue () {
-		while ((queue.length > 0) && (ctConcurrentThreads < config.maxConcurrentThreads)) {
+		while ((queue.length > 0) && (ctConcurrentUploads < config.maxConcurrentUploads)) {
 			let next = queue.shift ();
 			flQueueChanged = true;
 			function uploadFile (localpath, s3path, url) {
@@ -204,21 +203,24 @@ function okToUpload (f) {
 						}
 					else {
 						uploadingNow [localpath] = true;
+						ctConcurrentUploads++;
 						let ext = utils.stringLastField (localpath, ".");
 						let type = utils.httpExt2MIME (ext), whenstart = new Date ();
 						if (stats.size <= config.minSizeForBlockUpload) {
 							fs.readFile (localpath, function (err, filedata) {
 								if (err) {
 									console.log ("error reading \"" + f + "\" == " + err.message);
+									ctConcurrentUploads--;
 									}
 								else {
 									s3.newObject (s3path, filedata, type, "public-read", function (err) {
 										delete uploadingNow [localpath];
+										ctConcurrentUploads--;
 										if (err) {
-											console.log ("uploadFile: s3path == " + s3path + ", err.message == " + err.message);
+											console.log ("uploadFile: " + s3path + ", err.message == " + err.message);
 											}
 										else {
-											console.log ("uploadFile: s3path == " + s3path + ", " + utils.secondsSince (whenstart) + " secs.");
+											console.log ("uploadFile: " + s3path + ", " + utils.secondsSince (whenstart) + " secs.");
 											addToLog ("upload", s3path, url, whenstart, filedata.length);
 											}
 										});
@@ -228,6 +230,7 @@ function okToUpload (f) {
 						else {
 							s3UploadBigFile (localpath, s3path, type, "public-read", function (data) {
 								delete uploadingNow [localpath];
+								ctConcurrentUploads--;
 								if (data !== undefined) {
 									console.log ("s3UploadBigFile returned == " + JSON.stringify (data, undefined, 4)); 
 									addToLog ("upload", s3path, url, whenstart, stats.size);
@@ -347,7 +350,7 @@ function okToUpload (f) {
 			}
 		}
 	function checkFileAndS3Stats () {
-		if (queue.length == 0) {
+		if ((queue.length == 0) && (ctConcurrentUploads == 0)) {
 			getLocalFilestats (config.watchFolder, function () {
 				getS3FileStats (config.s3FolderPath, function () {
 					for (var x in localFileStats) {
@@ -374,6 +377,10 @@ function okToUpload (f) {
 			}
 		}
 
+function everyMinute () {
+	console.log (myProductName + " v" + myVersion + ": " + new Date ().toLocaleTimeString () + ". " + ctConcurrentUploads + " current uploads. "+ queue.length + " elements in queue.\n");
+	checkFileAndS3Stats ();
+	}
 function everySecond () {
 	processQueue ();
 	if (flLogChanged) {
@@ -388,17 +395,17 @@ function everySecond () {
 		}
 	}
 
-console.log ("\n\n" + myProductName + " v" + myVersion + "\n\n");
+console.log ("\n" + myProductName + " v" + myVersion + "\n");
 readConfig (fnameConfig, config, function () {
-	console.log ("config == " + utils.jsonStringify (config));
+	console.log ("config == " + utils.jsonStringify (config) + "\n");
 	readLog (function () {
 		utils.sureFolder (config.watchFolder, function () {
 			});
 		});
 	startChokidar ();
-	checkFileAndS3Stats (); //do this once at startup
+	checkFileAndS3Stats ();
 	setInterval (everySecond, 1000); 
+	utils.runAtTopOfMinute (function () {
+		setInterval (everyMinute, 60000); 
+		});
 	});
-
-
-
