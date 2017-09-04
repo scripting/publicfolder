@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.4.0";   
+var myProductName = "publicFolder", myVersion = "0.4.1";   
 
 const chokidar = require ("chokidar");
 const utils = require ("daveutils");
@@ -18,16 +18,21 @@ let config = {
 	queueFname: "stats/queue.json",
 	flWriteQueue: true,
 	maxLogLength: 500,
-	maxConcurrentUploads: 3,
+	maxConcurrentThreads: 3,
 	minSizeForBlockUpload: 1024 * 1024 * 5 //5MB
 	};
 const fnameConfig = "config.json";
 
+var flConsoleMsgInLastMinute = false;
+
+function consoleMsg (s) {
+	flConsoleMsgInLastMinute = true;
+	console.log (s);
+	}
 function dateGreater (d1, d2) {
 	return (new Date (d1) > new Date (d2));
 	}
 function s3UploadBigFile (f, s3path, type, acl, callback) {
-	console.log ("s3UploadBigFile: f == " + f);
 	
 	let theStream = fs.createReadStream (f);
 	let splitpath = s3.splitPath (s3path);
@@ -46,15 +51,13 @@ function s3UploadBigFile (f, s3path, type, acl, callback) {
 	let s3obj = new AWS.S3 ({params: myParams});
 	s3obj.upload ({Body: theStream}, function (err, data) {
 		if (err) {
-			console.log ("s3UploadBigFile: err.message == " + err.message);
 			if (callback !== undefined) {
-				callback (undefined);
+				callback (err);
 				}
 			}
 		else {
-			console.log ("s3UploadBigFile: data.Location == " + data.Location);
 			if (callback !== undefined) {
-				callback (data);
+				callback (undefined, data);
 				}
 			}
 		});
@@ -70,7 +73,7 @@ function readConfig (f, config, callback) {
 						}
 					}
 				catch (err) {
-					console.log ("readConfig: err == " + err.message);
+					consoleMsg ("readConfig: err == " + err.message);
 					}
 				}
 			if (callback !== undefined) {
@@ -85,6 +88,30 @@ function okToUpload (f) {
 		return (false);
 		}
 	return (true);
+	}
+function okToReportUpload (relpath, callback) {
+	s3.getObjectMetadata (config.s3FolderPath + relpath, function (s3Stats) {
+		let localStats = fs.statSync (config.watchFolder + relpath);
+		if (callback !== undefined) {
+			let flMatch = s3Stats.ContentLength == localStats.size;
+			callback (flMatch && (localStats.size != 0));
+			}
+		});
+	}
+function getFileSizeString (localpath) {
+	let stats = fs.statSync (localpath);
+	return (utils.gigabyteString (stats.size));
+	}
+function minutesMessage (when) {
+	let now = new Date ();
+	when = new Date (when);
+	let secs = (now - when) / 1000;
+	if (secs < 60) {
+		return (secs + " secs");
+		}
+	else {
+		return ((secs / 60) + " mins");
+		}
 	}
 
 //log file
@@ -126,7 +153,7 @@ function okToUpload (f) {
 						callback ();
 						}
 					catch (err) {
-						console.log ("readLog: err.messaage == " + err.messaage);
+						consoleMsg ("readLog: err.messaage == " + err.messaage);
 						callback ();
 						}
 					}
@@ -163,7 +190,7 @@ function okToUpload (f) {
 		writeLog ();
 		}
 //the queue
-	let queue = new Array (), ctConcurrentUploads = 0, flQueueChanged = false;
+	let queue = new Array (), ctConcurrentThreads = 0, flQueueChanged = false;
 	let uploadingNow = new Object (); //helps us keep from uploading a file twice
 	
 	function addToQueue (operation, path) {
@@ -186,81 +213,6 @@ function okToUpload (f) {
 			flQueueChanged = true;
 			}
 		}
-	function processQueue () {
-		while ((queue.length > 0) && (ctConcurrentUploads < config.maxConcurrentUploads)) {
-			let next = queue.shift ();
-			flQueueChanged = true;
-			function uploadFile (localpath, s3path, url) {
-				function fileStillCopying (stats) {
-					return (false);
-					}
-				if (uploadingNow [localpath] === undefined) {
-					let stats = fs.statSync (localpath);
-					if (fileStillCopying (stats)) { 
-						console.log ("uploadFile: putting \"" + localpath + "\" back on the queue.");
-						queue.push (next);
-						flQueueChanged = true;
-						}
-					else {
-						uploadingNow [localpath] = true;
-						ctConcurrentUploads++;
-						let ext = utils.stringLastField (localpath, ".");
-						let type = utils.httpExt2MIME (ext), whenstart = new Date ();
-						if (stats.size <= config.minSizeForBlockUpload) {
-							fs.readFile (localpath, function (err, filedata) {
-								if (err) {
-									console.log ("error reading \"" + f + "\" == " + err.message);
-									ctConcurrentUploads--;
-									}
-								else {
-									s3.newObject (s3path, filedata, type, "public-read", function (err) {
-										delete uploadingNow [localpath];
-										ctConcurrentUploads--;
-										if (err) {
-											console.log ("uploadFile: " + s3path + ", err.message == " + err.message);
-											}
-										else {
-											console.log ("uploadFile: " + s3path + ", " + utils.secondsSince (whenstart) + " secs.");
-											addToLog ("upload", s3path, url, whenstart, filedata.length);
-											}
-										});
-									}
-								});
-							}
-						else {
-							s3UploadBigFile (localpath, s3path, type, "public-read", function (data) {
-								delete uploadingNow [localpath];
-								ctConcurrentUploads--;
-								if (data !== undefined) {
-									console.log ("s3UploadBigFile returned == " + JSON.stringify (data, undefined, 4)); 
-									addToLog ("upload", s3path, url, whenstart, stats.size);
-									}
-								});
-							}
-						}
-					}
-				}
-			function deleteFile (s3path) {
-				let whenstart = new Date ();
-				s3.deleteObject (s3path, function (err) {
-					addToLog ("delete", s3path, undefined, whenstart, undefined);
-					});
-				}
-			let localpath = config.watchFolder + next.what;
-			let s3path = config.s3FolderPath + next.what;
-			let url = config.urlS3Folder + next.what;
-			switch (next.op) {
-				case "upload":
-					uploadFile (localpath, s3path, url);
-					break;
-				case "delete":
-					deleteFile (s3path);
-					break;
-				default: 
-					break;
-				}
-			}
-		}
 	function writeQueue (callback) {
 		utils.sureFilePath (config.queueFname, function () {
 			fs.writeFile (config.queueFname, utils.jsonStringify (queue), function (err) {
@@ -269,6 +221,103 @@ function okToUpload (f) {
 					}
 				});
 			});
+		}
+	function queueStats () {
+		return (" " + ctConcurrentThreads + " threads, "+ queue.length + " items in queue.");
+		}
+	function processQueue () {
+		while ((queue.length > 0) && (ctConcurrentThreads < config.maxConcurrentThreads)) {
+			let next = queue.shift ();
+			flQueueChanged = true;
+			function uploadFile (relpath) {
+				let localpath = config.watchFolder + relpath;
+				let s3path = config.s3FolderPath + relpath;
+				function fileStillCopying (stats) {
+					return (false);
+					}
+				if (uploadingNow [localpath] === undefined) {
+					let stats = fs.statSync (localpath);
+					if (fileStillCopying (stats)) { 
+						consoleMsg ("uploadFile: putting \"" + localpath + "\" back on the queue.");
+						queue.push (next);
+						flQueueChanged = true;
+						}
+					else {
+						uploadingNow [localpath] = true;
+						ctConcurrentThreads++;
+						let ext = utils.stringLastField (localpath, ".");
+						let type = utils.httpExt2MIME (ext), whenstart = new Date ();
+						if (stats.size <= config.minSizeForBlockUpload) {
+							fs.readFile (localpath, function (err, filedata) {
+								if (err) {
+									consoleMsg ("error reading \"" + f + "\" == " + err.message);
+									ctConcurrentThreads--;
+									}
+								else {
+									s3.newObject (s3path, filedata, type, "public-read", function (err) {
+										if (err) {
+											consoleMsg ("uploadFile: " + s3path + ", err.message == " + err.message);
+											}
+										else {
+											okToReportUpload (relpath, function (ok) { //if sizes don't match, don't report the copy
+												if (ok) {
+													let sizestring = getFileSizeString (localpath);
+													consoleMsg ("uploadFile: " + relpath + ", " + minutesMessage (whenstart) + ", " + sizestring + ". " + queueStats ());
+													addToLog ("upload", s3path, url, whenstart, filedata.length);
+													}
+												});
+											}
+										delete uploadingNow [localpath];
+										ctConcurrentThreads--;
+										});
+									}
+								});
+							}
+						else {
+							s3UploadBigFile (localpath, s3path, type, "public-read", function (err, data) {
+								if (err) {
+									consoleMsg ("uploadFile: err.message == " + err.message); 
+									}
+								else {
+									okToReportUpload (relpath, function (ok) { //if sizes don't match, don't report the copy
+										if (ok) {
+											let sizestring = getFileSizeString (localpath);
+											consoleMsg ("uploadFile: " + relpath + ", " + minutesMessage (whenstart) + ", " + sizestring + ". " + queueStats ());
+											addToLog ("upload", s3path, url, whenstart, stats.size);
+											}
+										});
+									}
+								delete uploadingNow [localpath];
+								ctConcurrentThreads--;
+								});
+							}
+						}
+					}
+				}
+			function deleteFile (relpath) {
+				let s3path = config.s3FolderPath + relpath;
+				let whenstart = new Date ();
+				ctConcurrentThreads++;
+				s3.deleteObject (s3path, function (err) {
+					ctConcurrentThreads--;
+					consoleMsg ("deleteFile: " + s3path + ", " + utils.secondsSince (whenstart) + " secs.");
+					addToLog ("delete", s3path, undefined, whenstart, undefined);
+					});
+				}
+			let localpath = config.watchFolder + next.what;
+			let s3path = config.s3FolderPath + next.what;
+			let url = config.urlS3Folder + next.what;
+			switch (next.op) {
+				case "upload":
+					uploadFile (next.what);
+					break;
+				case "delete":
+					deleteFile (next.what);
+					break;
+				default: 
+					break;
+				}
+			}
 		}
 //chokidar
 	function startChokidar () {
@@ -350,19 +399,19 @@ function okToUpload (f) {
 			}
 		}
 	function checkFileAndS3Stats () {
-		if ((queue.length == 0) && (ctConcurrentUploads == 0)) {
+		if ((queue.length == 0) && (ctConcurrentThreads == 0)) {
 			getLocalFilestats (config.watchFolder, function () {
 				getS3FileStats (config.s3FolderPath, function () {
 					for (var x in localFileStats) {
 						if (s3FileStats [x] === undefined) {
 							if (okToUpload (x)) {
-								console.log ("The file \"" + x + "\" is not present in the S3 folder.");
+								consoleMsg ("The file \"" + x + "\" is not present in the S3 folder.");
 								addToQueue ("upload", x);
 								}
 							}
 						else {
 							if (dateGreater (localFileStats [x].modified, s3FileStats [x].modified)) {
-								console.log ("The local file \"" + x + "\" has been modified.");
+								consoleMsg ("The local file \"" + x + "\" has been modified.");
 								addToQueue ("upload", x);
 								}
 							}
@@ -377,12 +426,17 @@ function okToUpload (f) {
 			}
 		}
 
+
 function everyMinute () {
-	console.log (myProductName + " v" + myVersion + ": " + new Date ().toLocaleTimeString () + ". " + ctConcurrentUploads + " current uploads. "+ queue.length + " elements in queue.\n");
+	let addthis = ""
+	if (flConsoleMsgInLastMinute) {
+		flConsoleMsgInLastMinute = false;
+		addthis = "\n";
+		}
+	console.log (addthis + myProductName + " v" + myVersion + ": " + new Date ().toLocaleTimeString () + "." + queueStats () + "\n");
 	checkFileAndS3Stats ();
 	}
 function everySecond () {
-	processQueue ();
 	if (flLogChanged) {
 		flLogChanged = false;
 		writeLog ();
@@ -394,6 +448,9 @@ function everySecond () {
 		flQueueChanged = false;
 		}
 	}
+function everyQuarterSecond () {
+	processQueue ();
+	}
 
 console.log ("\n" + myProductName + " v" + myVersion + "\n");
 readConfig (fnameConfig, config, function () {
@@ -404,8 +461,10 @@ readConfig (fnameConfig, config, function () {
 		});
 	startChokidar ();
 	checkFileAndS3Stats ();
+	setInterval (everyQuarterSecond, 250); 
 	setInterval (everySecond, 1000); 
 	utils.runAtTopOfMinute (function () {
 		setInterval (everyMinute, 60000); 
+		everyMinute ();
 		});
 	});
