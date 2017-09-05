@@ -1,4 +1,6 @@
-var myProductName = "publicFolder", myVersion = "0.4.1";   
+var myProductName = "publicFolder", myVersion = "0.4.5";   
+
+exports.start = startup; 
 
 const chokidar = require ("chokidar");
 const utils = require ("daveutils");
@@ -6,7 +8,7 @@ const s3 = require ("daves3");
 const fs = require ("fs");
 const zlib = require ("zlib");
 const AWS = require ("aws-sdk");
-const filesystem = require ("./lib/filesystem.js");
+const filesystem = require ("davefilesystem");
 
 let config = {
 	watchFolder: "watch/",
@@ -19,7 +21,7 @@ let config = {
 	flWriteQueue: true,
 	maxLogLength: 500,
 	maxConcurrentThreads: 3,
-	minSizeForBlockUpload: 1024 * 1024 * 5 //5MB
+	maxSizeForBlockUpload: 1024 * 1024 * 5 //5MB
 	};
 const fnameConfig = "config.json";
 
@@ -110,7 +112,8 @@ function minutesMessage (when) {
 		return (secs + " secs");
 		}
 	else {
-		return ((secs / 60) + " mins");
+		let mins = secs / 60;
+		return (utils.trimTrailing (mins.toFixed (3), "0") + " mins");
 		}
 	}
 
@@ -223,7 +226,17 @@ function minutesMessage (when) {
 			});
 		}
 	function queueStats () {
-		return (" " + ctConcurrentThreads + " threads, "+ queue.length + " items in queue.");
+		let threads = "thread";
+		if (ctConcurrentThreads !== 1) {
+			threads += "s";
+			}
+		
+		let items = "item";
+		if (queue.length !== 1) {
+			items += "s";
+			}
+		
+		return (" " + ctConcurrentThreads + " " + threads + ", " + queue.length + " " + items + " in queue.");
 		}
 	function processQueue () {
 		while ((queue.length > 0) && (ctConcurrentThreads < config.maxConcurrentThreads)) {
@@ -247,7 +260,7 @@ function minutesMessage (when) {
 						ctConcurrentThreads++;
 						let ext = utils.stringLastField (localpath, ".");
 						let type = utils.httpExt2MIME (ext), whenstart = new Date ();
-						if (stats.size <= config.minSizeForBlockUpload) {
+						if (stats.size <= config.maxSizeForBlockUpload) { //upload in one read, no streaming needed (small file)
 							fs.readFile (localpath, function (err, filedata) {
 								if (err) {
 									consoleMsg ("error reading \"" + f + "\" == " + err.message);
@@ -426,7 +439,6 @@ function minutesMessage (when) {
 			}
 		}
 
-
 function everyMinute () {
 	let addthis = ""
 	if (flConsoleMsgInLastMinute) {
@@ -452,19 +464,35 @@ function everyQuarterSecond () {
 	processQueue ();
 	}
 
-console.log ("\n" + myProductName + " v" + myVersion + "\n");
-readConfig (fnameConfig, config, function () {
-	console.log ("config == " + utils.jsonStringify (config) + "\n");
-	readLog (function () {
-		utils.sureFolder (config.watchFolder, function () {
+function startup (configParam, callback) {
+	console.log ("\n" + myProductName + " v" + myVersion + "\n");
+	if (configParam !== undefined) {
+		for (x in configParam) {
+			config [x] = configParam [x];
+			}
+		}
+	readConfig (fnameConfig, config, function () {
+		console.log ("config == " + utils.jsonStringify (config) + "\n");
+		
+		if (config.s3FolderPath === undefined) {
+			console.log ("Can't start publicfolder because config.s3FolderPath is not defined.\n");
+			return;
+			}
+		
+		readLog (function () {
+			utils.sureFolder (config.watchFolder, function () {
+				});
 			});
+		startChokidar ();
+		checkFileAndS3Stats ();
+		setInterval (everyQuarterSecond, 250); 
+		setInterval (everySecond, 1000); 
+		utils.runAtTopOfMinute (function () {
+			setInterval (everyMinute, 60000); 
+			everyMinute ();
+			});
+		if (callback !== undefined) {
+			callback ();
+			}
 		});
-	startChokidar ();
-	checkFileAndS3Stats ();
-	setInterval (everyQuarterSecond, 250); 
-	setInterval (everySecond, 1000); 
-	utils.runAtTopOfMinute (function () {
-		setInterval (everyMinute, 60000); 
-		everyMinute ();
-		});
-	});
+	}
