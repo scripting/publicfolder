@@ -1,6 +1,9 @@
-var myProductName = "publicFolder", myVersion = "0.4.5";   
+var myProductName = "publicFolder", myVersion = "0.4.9";   
 
 exports.start = startup; 
+exports.getConfig = function () {
+	return (config);
+	}
 
 const chokidar = require ("chokidar");
 const utils = require ("daveutils");
@@ -9,11 +12,16 @@ const fs = require ("fs");
 const zlib = require ("zlib");
 const AWS = require ("aws-sdk");
 const filesystem = require ("davefilesystem");
+const davehttp = require ("davehttp");
 
 let config = {
 	watchFolder: "watch/",
 	s3FolderPath: undefined,
 	urlS3Folder: undefined,
+	
+	httpPort: 1500,
+	flHttpEnabled: true,
+	
 	logFname: "stats/log.json",
 	fileStatsFname: "stats/localfiles.json",
 	s3FileStatsFname: "stats/s3files.json",
@@ -21,7 +29,10 @@ let config = {
 	flWriteQueue: true,
 	maxLogLength: 500,
 	maxConcurrentThreads: 3,
-	maxSizeForBlockUpload: 1024 * 1024 * 5 //5MB
+	maxSizeForBlockUpload: 1024 * 1024 * 5, //5MB
+	
+	addToLogCallback: function (theLogItem) {
+		}
 	};
 const fnameConfig = "config.json";
 
@@ -163,10 +174,10 @@ function minutesMessage (when) {
 				});
 			});
 		}
-	function addToLog (action, s3path, url, whenstart, size) {
+	function addToLog (action, relpath, url, whenstart, size) {
 		watchLog.actions.unshift ({
 			action: action, 
-			path: s3path,
+			path: relpath,
 			url: url,
 			size: size,
 			secs: utils.secondsSince (whenstart),
@@ -187,6 +198,7 @@ function minutesMessage (when) {
 				break;
 			}
 		flLogChanged = true;
+		config.addToLogCallback (watchLog.actions [0]);
 		}
 	function emptyLog () {
 		watchLog.actions = new Array ();
@@ -276,7 +288,7 @@ function minutesMessage (when) {
 												if (ok) {
 													let sizestring = getFileSizeString (localpath);
 													consoleMsg ("uploadFile: " + relpath + ", " + minutesMessage (whenstart) + ", " + sizestring + ". " + queueStats ());
-													addToLog ("upload", s3path, url, whenstart, filedata.length);
+													addToLog ("upload", relpath, url, whenstart, filedata.length);
 													}
 												});
 											}
@@ -296,7 +308,7 @@ function minutesMessage (when) {
 										if (ok) {
 											let sizestring = getFileSizeString (localpath);
 											consoleMsg ("uploadFile: " + relpath + ", " + minutesMessage (whenstart) + ", " + sizestring + ". " + queueStats ());
-											addToLog ("upload", s3path, url, whenstart, stats.size);
+											addToLog ("upload", relpath, url, whenstart, stats.size);
 											}
 										});
 									}
@@ -314,7 +326,7 @@ function minutesMessage (when) {
 				s3.deleteObject (s3path, function (err) {
 					ctConcurrentThreads--;
 					consoleMsg ("deleteFile: " + s3path + ", " + utils.secondsSince (whenstart) + " secs.");
-					addToLog ("delete", s3path, undefined, whenstart, undefined);
+					addToLog ("delete", relpath, undefined, whenstart, undefined);
 					});
 				}
 			let localpath = config.watchFolder + next.what;
@@ -438,6 +450,87 @@ function minutesMessage (when) {
 				});
 			}
 		}
+//folder to outline
+	function folderToOutline (folder) {
+		function visitFolder (folder, subs) {
+			let list = fs.readdirSync (folder);
+			for (var i = 0; i < list.length; i++) {
+				let fname = list [i], f = folder + fname;
+				if (okToUpload (f)) {
+					let stats = fs.statSync (f);
+					let sub = {
+						text: fname,
+						size: stats.size,
+						created: stats.birthtime,
+						modified: stats.ctime 
+						};
+					subs.push (sub);
+					if (stats.isDirectory ()) {
+						sub.subs = [];
+						visitFolder (f + "/", sub.subs);
+						}
+					}
+				}
+			}
+		let theOutline = {
+			subs: [
+				]
+			}
+		visitFolder (folder, theOutline.subs);
+		return (theOutline);
+		}
+//http server
+	function startHttp () {
+		if (config.flHttpEnabled) {
+			let httpConfig = {
+				port: config.httpPort
+				};
+			davehttp.start (httpConfig, function (theRequest) {
+				function dataResponse (data) {
+					theRequest.httpReturn (200, "application/json", utils.jsonStringify (data));
+					}
+				function errorResponse (error) {
+					theRequest.httpReturn (500, "application/json", utils.jsonStringify (error));
+					}
+				function notFoundResponse () {
+					theRequest.httpReturn (404, "text/plain", "Not found.");
+					}
+				switch (theRequest.lowerpath) {
+					case "/":
+						fs.readFile ("index.html", function (err, data) {
+							if (err) {
+								notFoundResponse ();
+								}
+							else {
+								theRequest.httpReturn (200, "text/html", data);
+								}
+							});
+						break;
+					case "/log":
+						dataResponse (watchLog);
+						break;
+					case "/queue":
+						dataResponse (queue);
+						break;
+					case "/uploadingnow":
+						dataResponse (uploadingNow);
+						break;
+					case "/localfiles":
+						dataResponse (localFileStats);
+						break;
+					case "/localfilesoutline":
+						dataResponse (folderToOutline (config.watchFolder));
+						break;
+					case "/s3files":
+						dataResponse (s3FileStats);
+						break;
+					default:
+						notFoundResponse ();
+						break;
+					}
+				});
+			}
+		}
 
 function everyMinute () {
 	let addthis = ""
@@ -473,26 +566,23 @@ function startup (configParam, callback) {
 		}
 	readConfig (fnameConfig, config, function () {
 		console.log ("config == " + utils.jsonStringify (config) + "\n");
-		
 		if (config.s3FolderPath === undefined) {
-			console.log ("Can't start publicfolder because config.s3FolderPath is not defined.\n");
+			console.log ("Can't start \"publicfolder\" because config.s3FolderPath is not defined.\n");
 			return;
 			}
-		
 		readLog (function () {
-			utils.sureFolder (config.watchFolder, function () {
+			startChokidar ();
+			checkFileAndS3Stats ();
+			startHttp ();
+			setInterval (everyQuarterSecond, 250); 
+			setInterval (everySecond, 1000); 
+			utils.runAtTopOfMinute (function () {
+				setInterval (everyMinute, 60000); 
+				everyMinute ();
 				});
+			if (callback !== undefined) {
+				callback ();
+				}
 			});
-		startChokidar ();
-		checkFileAndS3Stats ();
-		setInterval (everyQuarterSecond, 250); 
-		setInterval (everySecond, 1000); 
-		utils.runAtTopOfMinute (function () {
-			setInterval (everyMinute, 60000); 
-			everyMinute ();
-			});
-		if (callback !== undefined) {
-			callback ();
-			}
 		});
 	}

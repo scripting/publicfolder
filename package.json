@@ -3,7 +3,7 @@
 	"description": "Upstream from a desktop folder to S3.",
 	"author": "Dave Winer <dave@smallpicture.com>",
 	"license": "MIT",
-	"version": "0.4.5",
+	"version": "0.4.9",
 	"main": "publicfolder.js",
 	"repository": {
 		"type": "git",
@@ -17,6 +17,7 @@
 		"aws-sdk": "*",
 		"daves3": "*",
 		"davefilesystem": "*",
+		"davehttp": "*",
 		"daveutils": "*"
 		}
 	}
