@@ -1,9 +1,10 @@
-var myProductName = "publicFolder", myVersion = "0.4.9";   
+var myProductName = "publicFolder", myVersion = "0.4.10";   
 
 exports.start = startup; 
 exports.getConfig = function () {
 	return (config);
 	}
+exports.setFolders = setFolders;
 
 const chokidar = require ("chokidar");
 const utils = require ("daveutils");
@@ -37,6 +38,7 @@ let config = {
 const fnameConfig = "config.json";
 
 var flConsoleMsgInLastMinute = false;
+var myChokidarWatcher = undefined;
 
 function consoleMsg (s) {
 	flConsoleMsgInLastMinute = true;
@@ -125,6 +127,13 @@ function minutesMessage (when) {
 	else {
 		let mins = secs / 60;
 		return (utils.trimTrailing (mins.toFixed (3), "0") + " mins");
+		}
+	}
+function setFolders (jstruct) {
+	console.log ("setFolders: jstruct == " + utils.jsonStringify (jstruct));
+	if (jstruct.watchFolder !== config.watchFolder) {
+		config.watchFolder = jstruct.watchFolder;
+		startChokidar ();
 		}
 	}
 
@@ -346,16 +355,14 @@ function minutesMessage (when) {
 		}
 //chokidar
 	function startChokidar () {
-		function getS3Path (f) {
-			let relpath = utils.stringDelete (f, 1, config.watchFolder.length);
-			let s3path = config.s3FolderPath + relpath;
-			return (s3path)
+		if (myChokidarWatcher !== undefined) { //the watchfolder changed -- 9/8/17 by DW
+			myChokidarWatcher.close ();
 			}
-		let watcher = chokidar.watch (config.watchFolder, {
+		myChokidarWatcher = chokidar.watch (config.watchFolder, {
 			ignoreInitial: true,
 			awaitWriteFinish: true
 			});
-		watcher.on ("all", function (event, f) {
+		myChokidarWatcher.on ("all", function (event, f) {
 			let relpath = utils.stringDelete (f, 1, config.watchFolder.length), whenstart = new Date ();
 			switch (event) {
 				case "add":
