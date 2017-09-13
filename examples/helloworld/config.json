@@ -1,0 +1,5 @@
+{
+	"watchFolder": "/volumes/Montana/Users/davewiner/publicFolder/",
+	"s3FolderPath": "/publicfolder.io/testing/",
+	"urlS3Folder": "http://publicfolder.io/testing/"
+	}

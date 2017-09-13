@@ -3,7 +3,7 @@
 	"description": "Upstream from a desktop folder to S3.",
 	"author": "Dave Winer <dave@smallpicture.com>",
 	"license": "MIT",
-	"version": "0.4.9",
+	"version": "0.4.10",
 	"main": "publicfolder.js",
 	"repository": {
 		"type": "git",
