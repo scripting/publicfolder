@@ -1,5 +1,5 @@
 {
 	"watchFolder": "/Volumes/MyBootDisk/Users/bullmancuso/publicFolder/",
-	"s3FolderPath": "/bullmancuso.com/",
+	"s3Folder": "/bullmancuso.com/",
 	"urlS3Folder": "http://bullmancuso.com/"
 	}

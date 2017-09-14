@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.4.11";   
+var myProductName = "publicFolder", myVersion = "0.4.18";   
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2017 Dave Winer
@@ -37,12 +37,12 @@ const filesystem = require ("davefilesystem");
 const davehttp = require ("davehttp");
 
 let config = {
-	watchFolder: "watch/",
-	s3FolderPath: undefined,
+	watchFolder: undefined,
+	s3Folder: undefined,
 	urlS3Folder: undefined,
 	
+	flHttpEnabled: false,
 	httpPort: 1500,
-	flHttpEnabled: true,
 	
 	logFname: "stats/log.json",
 	fileStatsFname: "stats/localfiles.json",
@@ -67,6 +67,35 @@ function consoleMsg (s) {
 	}
 function dateGreater (d1, d2) {
 	return (new Date (d1) > new Date (d2));
+	}
+function s3UploadBigFile (f, s3path, type, acl, callback) {
+	let theStream = fs.createReadStream (f);
+	let splitpath = s3.splitPath (s3path);
+	
+	if (acl === undefined) {
+		acl = "public-read";
+		}
+	
+	let myParams = {
+		Bucket: splitpath.Bucket,
+		Key: splitpath.Key,
+		ContentType: type, 
+		ACL: acl
+		};
+	
+	let s3obj = new AWS.S3 ({params: myParams});
+	s3obj.upload ({Body: theStream}, function (err, data) {
+		if (err) {
+			if (callback !== undefined) {
+				callback (err);
+				}
+			}
+		else {
+			if (callback !== undefined) {
+				callback (undefined, data);
+				}
+			}
+		});
 	}
 function readConfig (f, config, callback) {
 	utils.sureFilePath (f, function () {
@@ -96,7 +125,7 @@ function okToUpload (f) {
 	return (true);
 	}
 function okToReportUpload (relpath, callback) {
-	s3.getObjectMetadata (config.s3FolderPath + relpath, function (s3Stats) {
+	s3.getObjectMetadata (config.s3Folder + relpath, function (s3Stats) {
 		let localStats = fs.statSync (config.watchFolder + relpath);
 		if (callback !== undefined) {
 			let flMatch = s3Stats.ContentLength == localStats.size;
@@ -256,7 +285,8 @@ function setFolders (jstruct) {
 			flQueueChanged = true;
 			function uploadFile (relpath) {
 				let localpath = config.watchFolder + relpath;
-				let s3path = config.s3FolderPath + relpath;
+				let s3path = config.s3Folder + relpath;
+				let url = config.urlS3Folder + relpath;
 				function fileStillCopying (stats) {
 					return (false);
 					}
@@ -299,7 +329,7 @@ function setFolders (jstruct) {
 								});
 							}
 						else {
-							s3.uploadBigFile (localpath, s3path, type, "public-read", function (err, data) {
+							s3UploadBigFile (localpath, s3path, type, "public-read", function (err, data) {
 								if (err) {
 									consoleMsg ("uploadFile: err.message == " + err.message); 
 									}
@@ -320,7 +350,7 @@ function setFolders (jstruct) {
 					}
 				}
 			function deleteFile (relpath) {
-				let s3path = config.s3FolderPath + relpath;
+				let s3path = config.s3Folder + relpath;
 				let whenstart = new Date ();
 				ctConcurrentThreads++;
 				s3.deleteObject (s3path, function (err) {
@@ -329,9 +359,6 @@ function setFolders (jstruct) {
 					addToLog ("delete", relpath, undefined, whenstart, undefined);
 					});
 				}
-			let localpath = config.watchFolder + next.what;
-			let s3path = config.s3FolderPath + next.what;
-			let url = config.urlS3Folder + next.what;
 			switch (next.op) {
 				case "upload":
 					uploadFile (next.what);
@@ -424,7 +451,7 @@ function setFolders (jstruct) {
 	function checkFileAndS3Stats () {
 		if ((queue.length == 0) && (ctConcurrentThreads == 0)) {
 			getLocalFilestats (config.watchFolder, function () {
-				getS3FileStats (config.s3FolderPath, function () {
+				getS3FileStats (config.s3Folder, function () {
 					for (var x in localFileStats) {
 						if (s3FileStats [x] === undefined) {
 							if (okToUpload (x)) {
@@ -564,8 +591,8 @@ function startup (configParam, callback) {
 		}
 	readConfig (fnameConfig, config, function () {
 		console.log ("config == " + utils.jsonStringify (config) + "\n");
-		if (config.s3FolderPath === undefined) {
-			console.log ("Can't start \"publicfolder\" because config.s3FolderPath is not defined.\n");
+		if (config.s3Folder === undefined) {
+			console.log ("Can't start \"publicfolder\" because config.s3Folder is not defined.\n");
 			return;
 			}
 		readLog (function () {
