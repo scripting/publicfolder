@@ -2,13 +2,25 @@
 
 publicFolder is a Node app that runs on your desktop and keeps a single folder in sync with a location on Amazon S3.
 
-This release is the package that's at the core of the app, which will eventually ship in an Electron shell for the Mac. You can run the publicFolder package anywhere that Node runs. 
+This release is the package that's at the core of the app, which will eventually ship in an Electron shell for the Mac. You can run the publicFolder package anywhere that Node runs using a small shell, which is <a href="https://github.com/scripting/publicfolder/tree/master/examples/helloworld">provided</a>.  
+
+### Who this is for
+
+We will have a simple-to-use shell soon, but for right now, this package is for experienced Node developers. I'm looking for <a href="https://en.wikipedia.org/wiki/Linus%27s_Law">help</a> validating the software, to be sure it works, before building too much on top of it. I see this as essential system software, something we have to be confident in.
 
 ### How to
 
-You have to configure publicFolder to tell it where you're keeping the local folder and where to store the files in that folder on S3. That's done entirely through a config.json file in the same folder as the publicFolder app. 
+1. <a href="https://github.com/scripting/publicfolder/archive/master.zip">Download</a> the folder. 
 
-You also have to provide credentials in a form that the AWS software, which is part of publicFolder, will recognize. You can create a credentials file, or set up environment variables. Amazon has a page of docs that explains. 
+2. Open the <i>examples</i> folder and move the <i>helloworld</i> sub-folder where you keep Node stuff. You can delete the rest of the files if you want.
+
+3. Edit the config.json file and replace the example values with the path to the local folder (watchFolder) and where to store the files on S3 (s3FolderPath). 
+
+4. If the destination on S3 truly is public (there's no actual requirement that it must be) also set the urlS3Folder value to point to the folder on the web. This will be used in logging and error messages, at some point, though there is no code in publicFolder at this time that uses this value. Otherwise set it to the empty string.
+
+5. You also have to provide credentials in a form that the AWS software, which is part of publicFolder, will recognize. You can create a credentials file, or set up environment variables. Amazon has a <a href="https://aws.amazon.com/blogs/security/a-new-and-standardized-way-to-manage-credentials-in-the-aws-sdks/">page of docs</a> that explains. 
+
+6. At the command line, install the dependencies using `npm install` and then run the app.
 
 ### How it works
 
