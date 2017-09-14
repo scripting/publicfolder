@@ -1,6 +1,6 @@
 # publicFolder
 
-publicFolder is a Node app that runs on your desktop and keeps a single folder in sync with a location on Amazon S3.
+<a href="http://publicfolder.io/">publicFolder</a> is a Node app that runs on your desktop and keeps a single folder in sync with a location on <a href="https://aws.amazon.com/s3/?sc_channel=PS&sc_campaign=acquisition_US&sc_publisher=google&sc_medium=s3_b&sc_content=s3_e&sc_detail=amazon%20s3&sc_category=s3&sc_segment=192085379923&sc_matchtype=e&sc_country=US&s_kwcid=AL!4422!3!192085379923!e!!g!!amazon%20">Amazon S3</a>.
 
 This release is the <a href="https://www.npmjs.com/package/publicfolder">package</a> that's at the core of the app, which will eventually ship in an Electron shell for the Mac. 
 
@@ -44,7 +44,7 @@ publicFolder has two systems for detecting differences between the version of th
 
 3. It does not attempt to synchronize the local folder with the S3 location. It is not a replacement for Dropbox. The master is on the desktop, always. If a file exists in S3 that does not exist on the desktop, the S3 file is removed. It's a publisher, not a synchronizer. 
 
-4. For relatively small files, 5MB or smaller, it uploads using a single file read. For larger files, it streams the content of the files to s3. 
+4. For relatively small files, 5MB or smaller, it uploads using a single file read. For larger files, it streams the content of the files to S3. 
 
 5. There's a built-in HTTP server which ships turned off. It's there primarily so the Electron app can get information about what's going on in the main thread to report to the user. You can turn it on by setting config.flHttpEnabled to true.
 
@@ -54,7 +54,7 @@ publicFolder takes care of exactly what's needed for a person to publish. It's t
 
 Dropbox was quite close to the idea of publicFolder, but when it became popular they pulled back. As I understand , if you created your account after 2012, you didn't have a public folder. I did, because I was an early adopter. They finally turned the feature off on Sept 1, 2017. It was then that I decided it was time for a reliable and complete open source app that worked exactly the way you'd want it to work for publishing. Dropbox's heart was never in publishing. publicFolder is all about publishing. 
 
-Another precursor of publicFolder was upstreaming in Radio UserLand, released in 2002. publicFolder should be a lot more efficient and powerful, but that said, upstreaming was pretty good, and Radio -- through upstreaming -- was one of the pillars of the early blogosphere, and an interesting web product as well. Radio had a CMS built in. This time around I have created that as a separate module. I'm pretty sure any static site generator that runs where Node runs will be compatible with publicFolder. 
+Another precursor of publicFolder was upstreaming in Radio UserLand, released in 2002. publicFolder should be a lot more efficient and powerful, but that said, upstreaming was pretty good, and Radio -- through upstreaming -- was one of the pillars of the early blogosphere. 
 
 ### Thanks to
 
