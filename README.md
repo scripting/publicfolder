@@ -2,7 +2,7 @@
 
 publicFolder is a Node app that runs on your desktop and keeps a single folder in sync with a location on Amazon S3.
 
-This release is the package that's at the core of the app, which will eventually ship in an Electron shell for the Mac. You can run the publicFolder package anywhere that Node runs using a small shell, which is <a href="https://github.com/scripting/publicfolder/tree/master/examples/helloworld">provided</a>.  
+This release is the <a href="https://www.npmjs.com/package/publicfolder">package</a> that's at the core of the app, which will eventually ship in an Electron shell for the Mac. You can run the publicFolder package anywhere that Node runs using a small shell, which is <a href="https://github.com/scripting/publicfolder/tree/master/examples/helloworld">provided</a>.  
 
 ### Who this is for
 
@@ -56,7 +56,7 @@ Another precursor of publicFolder was upstreaming in Radio UserLand, released in
 
 ### Thanks to
 
-Chokidar is at the core of publicFolder. This is the great thing about Node. There's a mature package for something as practical as file change notification. We all get to build on each others' work. 
+<a href="https://github.com/paulmillr/chokidar">Chokidar</a> is at the core of publicFolder. This is the great thing about Node. There's a mature package for something as practical as file change notification. We all get to build on each others' work. 
 
 S3 is a great storage system, it's fast, reliable, inexpensive. Like Dropbox, I wish they had done this project, and made creating a new storage location on S3 as easy as creating a Twitter account (an example, or GMail or Facebook). It's totally possible. 
 
