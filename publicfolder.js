@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.4.10";   
+var myProductName = "publicFolder", myVersion = "0.4.11";   
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2017 Dave Winer
@@ -67,36 +67,6 @@ function consoleMsg (s) {
 	}
 function dateGreater (d1, d2) {
 	return (new Date (d1) > new Date (d2));
-	}
-function s3UploadBigFile (f, s3path, type, acl, callback) {
-	
-	let theStream = fs.createReadStream (f);
-	let splitpath = s3.splitPath (s3path);
-	
-	if (acl === undefined) {
-		acl = "public-read";
-		}
-	
-	let myParams = {
-		Bucket: splitpath.Bucket,
-		Key: splitpath.Key,
-		ContentType: type, 
-		ACL: acl
-		};
-	
-	let s3obj = new AWS.S3 ({params: myParams});
-	s3obj.upload ({Body: theStream}, function (err, data) {
-		if (err) {
-			if (callback !== undefined) {
-				callback (err);
-				}
-			}
-		else {
-			if (callback !== undefined) {
-				callback (undefined, data);
-				}
-			}
-		});
 	}
 function readConfig (f, config, callback) {
 	utils.sureFilePath (f, function () {
@@ -329,7 +299,7 @@ function setFolders (jstruct) {
 								});
 							}
 						else {
-							s3UploadBigFile (localpath, s3path, type, "public-read", function (err, data) {
+							s3.uploadBigFile (localpath, s3path, type, "public-read", function (err, data) {
 								if (err) {
 									consoleMsg ("uploadFile: err.message == " + err.message); 
 									}
