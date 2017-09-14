@@ -2,7 +2,9 @@
 
 publicFolder is a Node app that runs on your desktop and keeps a single folder in sync with a location on Amazon S3.
 
-This release is the <a href="https://www.npmjs.com/package/publicfolder">package</a> that's at the core of the app, which will eventually ship in an Electron shell for the Mac. You can run the publicFolder package anywhere that Node runs using a small shell, which is <a href="https://github.com/scripting/publicfolder/tree/master/examples/helloworld">provided</a>.  
+This release is the <a href="https://www.npmjs.com/package/publicfolder">package</a> that's at the core of the app, which will eventually ship in an Electron shell for the Mac. 
+
+You can run the publicFolder package today, anywhere Node runs using a small shell app, which is <a href="https://github.com/scripting/publicfolder/tree/master/examples/helloworld">provided</a>.  
 
 ### Who this is for
 
