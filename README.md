@@ -62,6 +62,12 @@ Another precursor of publicFolder was upstreaming in Radio UserLand, released in
 
 S3 is a great storage system, it's fast, reliable, inexpensive. Like Dropbox, I wish they had done this project, and made creating a new storage location on S3 as easy as creating a Twitter account (an example, or GMail or Facebook). It's totally possible. 
 
+### Updates
+
+#### v0.4.19 -- 9/16/17 by DW
+
+Stats gathering, three new callbacks. 
+
 ### Questions, comments?
 
 Please post an issue <a href="https://github.com/scripting/publicfolder/issues">here</a>. 

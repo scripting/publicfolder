@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.4.18";   
+var myProductName = "publicFolder", myVersion = "0.4.19";   
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2017 Dave Winer
@@ -54,6 +54,12 @@ let config = {
 	maxSizeForBlockUpload: 1024 * 1024 * 5, //5MB
 	
 	addToLogCallback: function (theLogItem) {
+		},
+	uploadStartCallback: function (fileInfo) {
+		},
+	uploadDoneCallback: function (fileInfo) {
+		},
+	viewStatsCallback: function (stats) {
 		}
 	};
 const fnameConfig = "config.json";
@@ -64,6 +70,9 @@ var myChokidarWatcher = undefined;
 function consoleMsg (s) {
 	flConsoleMsgInLastMinute = true;
 	console.log (s);
+	}
+function viewStats () {
+	config.viewStatsCallback (watchLog.stats);
 	}
 function dateGreater (d1, d2) {
 	return (new Date (d1) > new Date (d2));
@@ -167,6 +176,17 @@ function setFolders (jstruct) {
 			ctBytesUploaded: 0,
 			ctDeletes: 0,
 			whenLastDelete: new Date (0),
+			ctBytesInLocalFolder: 0,
+			ctFilesInLocalFolder: 0,
+			ctBytesInS3Folder: 0,
+			ctFilesInS3Folder: 0,
+			ctSecsRunning: 0,
+			ctSecsRunningToday: 0,
+			whenFirstLaunch: undefined,
+			whenLaunch: new Date (0),
+			whenLastEveryMinute: new Date (0),
+			ctFilesInQueue: 0,
+			ctCurrentThreads: 0
 			},
 		actions: new Array ()
 		}
@@ -237,6 +257,16 @@ function setFolders (jstruct) {
 	let queue = new Array (), ctConcurrentThreads = 0, flQueueChanged = false;
 	let uploadingNow = new Object (); //helps us keep from uploading a file twice
 	
+	function upThreadCount () {
+		ctConcurrentThreads++;
+		watchLog.stats.ctCurrentThreads = ctConcurrentThreads;
+		viewStats ();
+		}
+	function downThreadCount () {
+		ctConcurrentThreads--;
+		watchLog.stats.ctCurrentThreads = ctConcurrentThreads;
+		viewStats ();
+		}
 	function addToQueue (operation, path) {
 		let fladd = true;
 		if ((operation == "upload") && uploadingNow [path]) { //we're currently uploading the file
@@ -255,6 +285,8 @@ function setFolders (jstruct) {
 				what: path
 				});
 			flQueueChanged = true;
+			watchLog.stats.ctFilesInQueue = queue.length;
+			viewStats ();
 			}
 		}
 	function writeQueue (callback) {
@@ -282,8 +314,15 @@ function setFolders (jstruct) {
 	function processQueue () {
 		while ((queue.length > 0) && (ctConcurrentThreads < config.maxConcurrentThreads)) {
 			let next = queue.shift ();
+			watchLog.stats.ctFilesInQueue = queue.length;
 			flQueueChanged = true;
 			function uploadFile (relpath) {
+				function getFileInfoForCallback () {
+					return ({
+						relpath: relpath,
+						stats: watchLog.stats
+						});
+					}
 				let localpath = config.watchFolder + relpath;
 				let s3path = config.s3Folder + relpath;
 				let url = config.urlS3Folder + relpath;
@@ -299,14 +338,16 @@ function setFolders (jstruct) {
 						}
 					else {
 						uploadingNow [localpath] = true;
-						ctConcurrentThreads++;
+						config.uploadStartCallback (getFileInfoForCallback ()); //9/15/17 by DW
+						upThreadCount ();
 						let ext = utils.stringLastField (localpath, ".");
 						let type = utils.httpExt2MIME (ext), whenstart = new Date ();
 						if (stats.size <= config.maxSizeForBlockUpload) { //upload in one read, no streaming needed (small file)
 							fs.readFile (localpath, function (err, filedata) {
 								if (err) {
 									consoleMsg ("error reading \"" + f + "\" == " + err.message);
-									ctConcurrentThreads--;
+									downThreadCount ();
+									config.uploadDoneCallback (getFileInfoForCallback ()); //9/15/17 by DW
 									}
 								else {
 									s3.newObject (s3path, filedata, type, "public-read", function (err) {
@@ -323,7 +364,8 @@ function setFolders (jstruct) {
 												});
 											}
 										delete uploadingNow [localpath];
-										ctConcurrentThreads--;
+										downThreadCount ();
+										config.uploadDoneCallback (getFileInfoForCallback ()); //9/15/17 by DW
 										});
 									}
 								});
@@ -343,7 +385,8 @@ function setFolders (jstruct) {
 										});
 									}
 								delete uploadingNow [localpath];
-								ctConcurrentThreads--;
+								downThreadCount ();
+								config.uploadDoneCallback (getFileInfoForCallback ()); //9/15/17 by DW
 								});
 							}
 						}
@@ -352,9 +395,9 @@ function setFolders (jstruct) {
 			function deleteFile (relpath) {
 				let s3path = config.s3Folder + relpath;
 				let whenstart = new Date ();
-				ctConcurrentThreads++;
+				upThreadCount ();
 				s3.deleteObject (s3path, function (err) {
-					ctConcurrentThreads--;
+					downThreadCount ();
 					consoleMsg ("deleteFile: " + s3path + ", " + utils.secondsSince (whenstart) + " secs.");
 					addToLog ("delete", relpath, undefined, whenstart, undefined);
 					});
@@ -401,7 +444,7 @@ function setFolders (jstruct) {
 	
 	function getS3FileStats (s3path, callback) {
 		if (s3path !== undefined) {
-			let whenstart = new Date ();
+			let whenstart = new Date (), ctfiles = 0, ctbytes = 0;
 			let splitpath = s3.splitPath (s3path);
 			s3FileStats = {};
 			s3.listObjects (s3path, function (obj) {
@@ -412,19 +455,27 @@ function setFolders (jstruct) {
 								callback ();
 								}
 							});
+						watchLog.stats.ctBytesInS3Folder = ctbytes;
+						watchLog.stats.ctFilesInS3Folder = ctfiles;
+						flLogChanged = true;
+						viewStats ();
 						});
 					}
 				else {
 					let key = utils.stringDelete (obj.Key, 1, splitpath.Key.length);
 					s3FileStats [key] = {
 						modified: new Date (obj.LastModified), 
+						size: obj.Size //9/16/17 by DW
 						};
+					ctbytes += obj.Size;
+					ctfiles++;
 					}
 				});
 			}
 		}
 	function getLocalFilestats (watchFolder, callback) {
 		if (watchFolder !== undefined) {
+			let ctfiles = 0, ctbytes = 0;
 			function forEachFile (f) {
 				if (okToUpload (f)) {
 					let stats = fs.statSync (f);
@@ -432,8 +483,11 @@ function setFolders (jstruct) {
 						accessed: stats.atime, //when the data was last read
 						modified: stats.mtime, //when one of the stats was changed
 						changed: stats.ctime, //this is the important one
-						created: stats.birthtime
+						created: stats.birthtime,
+						size: stats.size
 						};
+					ctbytes += stats.size;
+					ctfiles++;
 					}
 				}
 			localFileStats = {};
@@ -445,6 +499,10 @@ function setFolders (jstruct) {
 							}
 						});
 					});
+				watchLog.stats.ctBytesInLocalFolder = ctbytes;
+				watchLog.stats.ctFilesInLocalFolder = ctfiles;
+				flLogChanged = true;
+				viewStats ();
 				});
 			}
 		}
@@ -565,8 +623,16 @@ function everyMinute () {
 		}
 	console.log (addthis + myProductName + " v" + myVersion + ": " + new Date ().toLocaleTimeString () + "." + queueStats () + "\n");
 	checkFileAndS3Stats ();
+	
+	let now = new Date ();
+	if (!utils.sameDay (watchLog.stats.whenLastEveryMinute, now)) { //date rollover
+		watchLog.stats.ctSecsRunningToday = 0;
+		}
+	watchLog.stats.whenLastEveryMinute = now;
 	}
 function everySecond () {
+	watchLog.stats.ctSecsRunning++;
+	watchLog.stats.ctSecsRunningToday++;
 	if (flLogChanged) {
 		flLogChanged = false;
 		writeLog ();
@@ -583,6 +649,7 @@ function everyQuarterSecond () {
 	}
 
 function startup (configParam, callback) {
+	let whenLaunch = new Date ();
 	console.log ("\n" + myProductName + " v" + myVersion + "\n");
 	if (configParam !== undefined) {
 		for (x in configParam) {
@@ -596,6 +663,10 @@ function startup (configParam, callback) {
 			return;
 			}
 		readLog (function () {
+			watchLog.stats.whenLaunch = whenLaunch;
+			if (watchLog.stats.whenFirstLaunch === undefined) {
+				watchLog.stats.whenFirstLaunch = whenLaunch;
+				}
 			startChokidar ();
 			checkFileAndS3Stats ();
 			startHttp ();
