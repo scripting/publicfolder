@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.4.19";   
+var myProductName = "publicFolder", myVersion = "0.4.20";   
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2017 Dave Winer
@@ -66,6 +66,8 @@ const fnameConfig = "config.json";
 
 var flConsoleMsgInLastMinute = false;
 var myChokidarWatcher = undefined;
+var flDidSomethingSinceLastFileScan = false; //9/17/17 by DW
+
 
 function consoleMsg (s) {
 	flConsoleMsgInLastMinute = true;
@@ -285,6 +287,7 @@ function setFolders (jstruct) {
 				what: path
 				});
 			flQueueChanged = true;
+			flDidSomethingSinceLastFileScan = true;
 			watchLog.stats.ctFilesInQueue = queue.length;
 			viewStats ();
 			}
@@ -475,7 +478,7 @@ function setFolders (jstruct) {
 		}
 	function getLocalFilestats (watchFolder, callback) {
 		if (watchFolder !== undefined) {
-			let ctfiles = 0, ctbytes = 0;
+			let ctfiles = 0, ctbytes = 0, whenstart = new Date ();
 			function forEachFile (f) {
 				if (okToUpload (f)) {
 					let stats = fs.statSync (f);
@@ -508,6 +511,7 @@ function setFolders (jstruct) {
 		}
 	function checkFileAndS3Stats () {
 		if ((queue.length == 0) && (ctConcurrentThreads == 0)) {
+			flDidSomethingSinceLastFileScan = false;
 			getLocalFilestats (config.watchFolder, function () {
 				getS3FileStats (config.s3Folder, function () {
 					for (var x in localFileStats) {
@@ -642,6 +646,11 @@ function everySecond () {
 			writeQueue ();
 			}
 		flQueueChanged = false;
+		}
+	if (flDidSomethingSinceLastFileScan) { //9/17/17 by DW
+		if ((queue.length == 0) && (ctConcurrentThreads == 0)) { //whatever it was, it's done now
+			checkFileAndS3Stats ();
+			}
 		}
 	}
 function everyQuarterSecond () {
