@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.4.21";       
+var myProductName = "publicFolder", myVersion = "0.4.22";    
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2017 Dave Winer
@@ -63,6 +63,8 @@ let config = {
 	uploadDoneCallback: function (fileInfo) {
 		},
 	viewStatsCallback: function (stats) {
+		},
+	debugMessageCallback: function (s) {
 		}
 	};
 const fnameConfig = "config.json";
@@ -74,6 +76,7 @@ var flDidSomethingSinceLastFileScan = false; //9/17/17 by DW
 
 function consoleMsg (s) {
 	flConsoleMsgInLastMinute = true;
+	config.debugMessageCallback (s);
 	console.log (s);
 	}
 function viewStats () {
@@ -172,6 +175,15 @@ function setFolders (jstruct) {
 	}
 function getUserFilePath (path) {
 	return (config.userDataFolder + path);
+	}
+function getFileStats (f) {
+	try {
+		return (fs.statSync (f));
+		}
+	catch (err) {
+		consoleMsg ("getFileStats: err.message == " + err.message);
+		return (undefined);
+		}
 	}
 
 //log file
@@ -343,64 +355,66 @@ function getUserFilePath (path) {
 					return (false);
 					}
 				if (uploadingNow [localpath] === undefined) {
-					let stats = fs.statSync (localpath);
-					if (fileStillCopying (stats)) { 
-						consoleMsg ("uploadFile: putting \"" + localpath + "\" back on the queue.");
-						queue.push (next);
-						flQueueChanged = true;
-						}
-					else {
-						uploadingNow [localpath] = true;
-						config.uploadStartCallback (getFileInfoForCallback ()); //9/15/17 by DW
-						upThreadCount ();
-						let ext = utils.stringLastField (localpath, ".");
-						let type = utils.httpExt2MIME (ext), whenstart = new Date ();
-						if (stats.size <= config.maxSizeForBlockUpload) { //upload in one read, no streaming needed (small file)
-							fs.readFile (localpath, function (err, filedata) {
-								if (err) {
-									consoleMsg ("error reading \"" + f + "\" == " + err.message);
-									downThreadCount ();
-									config.uploadDoneCallback (getFileInfoForCallback ()); //9/15/17 by DW
-									}
-								else {
-									s3.newObject (s3path, filedata, type, "public-read", function (err) {
-										if (err) {
-											consoleMsg ("uploadFile: " + s3path + ", err.message == " + err.message);
-											}
-										else {
-											okToReportUpload (relpath, function (ok) { //if sizes don't match, don't report the copy
-												if (ok) {
-													let sizestring = getFileSizeString (localpath);
-													consoleMsg ("uploadFile: " + relpath + ", " + minutesMessage (whenstart) + ", " + sizestring + ". " + queueStats ());
-													addToLog ("upload", relpath, url, whenstart, filedata.length);
-													}
-												});
-											}
-										delete uploadingNow [localpath];
-										downThreadCount ();
-										config.uploadDoneCallback (getFileInfoForCallback ()); //9/15/17 by DW
-										});
-									}
-								});
+					let stats = getFileStats (localpath);
+					if (stats !== undefined) { //no error getting stats -- 9/19/17 by DW
+						if (fileStillCopying (stats)) { 
+							consoleMsg ("uploadFile: putting \"" + localpath + "\" back on the queue.");
+							queue.push (next);
+							flQueueChanged = true;
 							}
 						else {
-							s3UploadBigFile (localpath, s3path, type, "public-read", function (err, data) {
-								if (err) {
-									consoleMsg ("uploadFile: err.message == " + err.message); 
-									}
-								else {
-									okToReportUpload (relpath, function (ok) { //if sizes don't match, don't report the copy
-										if (ok) {
-											let sizestring = getFileSizeString (localpath);
-											consoleMsg ("uploadFile: " + relpath + ", " + minutesMessage (whenstart) + ", " + sizestring + ". " + queueStats ());
-											addToLog ("upload", relpath, url, whenstart, stats.size);
-											}
-										});
-									}
-								delete uploadingNow [localpath];
-								downThreadCount ();
-								config.uploadDoneCallback (getFileInfoForCallback ()); //9/15/17 by DW
-								});
+							uploadingNow [localpath] = true;
+							config.uploadStartCallback (getFileInfoForCallback ()); //9/15/17 by DW
+							upThreadCount ();
+							let ext = utils.stringLastField (localpath, ".");
+							let type = utils.httpExt2MIME (ext), whenstart = new Date ();
+							if (stats.size <= config.maxSizeForBlockUpload) { //upload in one read, no streaming needed (small file)
+								fs.readFile (localpath, function (err, filedata) {
+									if (err) {
+										consoleMsg ("error reading \"" + f + "\" == " + err.message);
+										downThreadCount ();
+										config.uploadDoneCallback (getFileInfoForCallback ()); //9/15/17 by DW
+										}
+									else {
+										s3.newObject (s3path, filedata, type, "public-read", function (err) {
+											if (err) {
+												consoleMsg ("uploadFile: " + s3path + ", err.message == " + err.message);
+												}
+											else {
+												okToReportUpload (relpath, function (ok) { //if sizes don't match, don't report the copy
+													if (ok) {
+														let sizestring = getFileSizeString (localpath);
+														consoleMsg ("uploadFile: " + relpath + ", " + minutesMessage (whenstart) + ", " + sizestring + ". " + queueStats ());
+														addToLog ("upload", relpath, url, whenstart, filedata.length);
+														}
+													});
+												}
+											delete uploadingNow [localpath];
+											downThreadCount ();
+											config.uploadDoneCallback (getFileInfoForCallback ()); //9/15/17 by DW
+											});
+										}
+									});
+								}
+							else {
+								s3UploadBigFile (localpath, s3path, type, "public-read", function (err, data) {
+									if (err) {
+										consoleMsg ("uploadFile: err.message == " + err.message); 
+										}
+									else {
+										okToReportUpload (relpath, function (ok) { //if sizes don't match, don't report the copy
+											if (ok) {
+												let sizestring = getFileSizeString (localpath);
+												consoleMsg ("uploadFile: " + relpath + ", " + minutesMessage (whenstart) + ", " + sizestring + ". " + queueStats ());
+												addToLog ("upload", relpath, url, whenstart, stats.size);
+												}
+											});
+										}
+									delete uploadingNow [localpath];
+									downThreadCount ();
+									config.uploadDoneCallback (getFileInfoForCallback ()); //9/15/17 by DW
+									});
+								}
 							}
 						}
 					}
@@ -679,10 +693,6 @@ function startup (configParam, callback) {
 		}
 	readConfig (getUserFilePath (fnameConfig), config, function () {
 		console.log ("config == " + utils.jsonStringify (config) + "\n");
-		watchLog.stats.whenLaunch = whenLaunch;
-		if (watchLog.stats.whenFirstLaunch === undefined) {
-			watchLog.stats.whenFirstLaunch = whenLaunch;
-			}
 		watchLog.stats.flGoodLaunch = false;
 		startHttp ();
 		utils.sureFolder (config.watchFolder, function () {
@@ -693,6 +703,10 @@ function startup (configParam, callback) {
 			else {
 				readLog (function () {
 					watchLog.stats.flGoodLaunch = true; //we're watching for changes in the watchFolder
+					watchLog.stats.whenLaunch = whenLaunch;
+					if (watchLog.stats.whenFirstLaunch === undefined) {
+						watchLog.stats.whenFirstLaunch = whenLaunch;
+						}
 					startChokidar ();
 					checkFileAndS3Stats ();
 					setInterval (everyQuarterSecond, 250); 
