@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.4.20";   
+var myProductName = "publicFolder", myVersion = "0.4.21";       
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2017 Dave Winer
@@ -41,13 +41,16 @@ let config = {
 	s3Folder: undefined,
 	urlS3Folder: undefined,
 	
+	
 	flHttpEnabled: false,
 	httpPort: 1500,
 	
+	userDataFolder: "", //defaults to folder containing app
 	logFname: "stats/log.json",
 	fileStatsFname: "stats/localfiles.json",
 	s3FileStatsFname: "stats/s3files.json",
 	queueFname: "stats/queue.json",
+	
 	flWriteQueue: true,
 	maxLogLength: 500,
 	maxConcurrentThreads: 3,
@@ -167,6 +170,9 @@ function setFolders (jstruct) {
 		startChokidar ();
 		}
 	}
+function getUserFilePath (path) {
+	return (config.userDataFolder + path);
+	}
 
 //log file
 	var watchLog = {
@@ -188,16 +194,18 @@ function setFolders (jstruct) {
 			whenLaunch: new Date (0),
 			whenLastEveryMinute: new Date (0),
 			ctFilesInQueue: 0,
-			ctCurrentThreads: 0
+			ctCurrentThreads: 0,
+			flGoodLaunch: undefined //9/18/17 by DW
 			},
 		actions: new Array ()
 		}
 	var flLogChanged = false;
 	function writeLog (callback) {
+		let f = getUserFilePath (config.logFname);
 		watchLog.stats.ctLogSaves++;
 		watchLog.stats.whenLastLogSave = new Date ();
-		utils.sureFilePath (config.logFname, function () {
-			fs.writeFile (config.logFname, utils.jsonStringify (watchLog), function (err) {
+		utils.sureFilePath (f, function () {
+			fs.writeFile (f, utils.jsonStringify (watchLog), function (err) {
 				if (callback !== undefined) {
 					callback ();
 					}
@@ -205,8 +213,9 @@ function setFolders (jstruct) {
 			});
 		}
 	function readLog (callback) {
-		utils.sureFilePath (config.logFname, function () {
-			fs.readFile (config.logFname, function (err, data) {
+		let f = getUserFilePath (config.logFname);
+		utils.sureFilePath (f, function () {
+			fs.readFile (f, function (err, data) {
 				if (err) {
 					writeLog ();
 					callback ();
@@ -293,8 +302,9 @@ function setFolders (jstruct) {
 			}
 		}
 	function writeQueue (callback) {
-		utils.sureFilePath (config.queueFname, function () {
-			fs.writeFile (config.queueFname, utils.jsonStringify (queue), function (err) {
+		let f = getUserFilePath (config.queueFname);
+		utils.sureFilePath (f, function () {
+			fs.writeFile (f, utils.jsonStringify (queue), function (err) {
 				if (callback !== undefined) {
 					callback ();
 					}
@@ -452,8 +462,9 @@ function setFolders (jstruct) {
 			s3FileStats = {};
 			s3.listObjects (s3path, function (obj) {
 				if (obj.flLastObject !== undefined) {
-					utils.sureFilePath (config.s3FileStatsFname, function () {
-						fs.writeFile (config.s3FileStatsFname, utils.jsonStringify (s3FileStats), function (err) {
+					let f = getUserFilePath (config.s3FileStatsFname);
+					utils.sureFilePath (f, function () {
+						fs.writeFile (f, utils.jsonStringify (s3FileStats), function (err) {
 							if (callback !== undefined) {
 								callback ();
 								}
@@ -495,8 +506,9 @@ function setFolders (jstruct) {
 				}
 			localFileStats = {};
 			filesystem.recursivelyVisitFiles (watchFolder, forEachFile, function () {
-				utils.sureFilePath (config.fileStatsFname, function () {
-					fs.writeFile (config.fileStatsFname, utils.jsonStringify (localFileStats), function (err) {
+				let f = getUserFilePath (config.fileStatsFname);
+				utils.sureFilePath (f, function () {
+					fs.writeFile (f, utils.jsonStringify (localFileStats), function (err) {
 						if (callback !== undefined) {
 							callback ();
 							}
@@ -665,28 +677,34 @@ function startup (configParam, callback) {
 			config [x] = configParam [x];
 			}
 		}
-	readConfig (fnameConfig, config, function () {
+	readConfig (getUserFilePath (fnameConfig), config, function () {
 		console.log ("config == " + utils.jsonStringify (config) + "\n");
-		if (config.s3Folder === undefined) {
-			console.log ("Can't start \"publicfolder\" because config.s3Folder is not defined.\n");
-			return;
+		watchLog.stats.whenLaunch = whenLaunch;
+		if (watchLog.stats.whenFirstLaunch === undefined) {
+			watchLog.stats.whenFirstLaunch = whenLaunch;
 			}
-		readLog (function () {
-			watchLog.stats.whenLaunch = whenLaunch;
-			if (watchLog.stats.whenFirstLaunch === undefined) {
-				watchLog.stats.whenFirstLaunch = whenLaunch;
-				}
-			startChokidar ();
-			checkFileAndS3Stats ();
-			startHttp ();
-			setInterval (everyQuarterSecond, 250); 
-			setInterval (everySecond, 1000); 
-			utils.runAtTopOfMinute (function () {
-				setInterval (everyMinute, 60000); 
-				everyMinute ();
-				});
-			if (callback !== undefined) {
+		watchLog.stats.flGoodLaunch = false;
+		startHttp ();
+		utils.sureFolder (config.watchFolder, function () {
+			if ((config.s3Folder === undefined) || (config.s3Folder.length == 0)) {
+				console.log ("Can't start \"publicfolder\" because config.s3Folder is not defined.\n");
 				callback ();
+				}
+			else {
+				readLog (function () {
+					watchLog.stats.flGoodLaunch = true; //we're watching for changes in the watchFolder
+					startChokidar ();
+					checkFileAndS3Stats ();
+					setInterval (everyQuarterSecond, 250); 
+					setInterval (everySecond, 1000); 
+					utils.runAtTopOfMinute (function () {
+						setInterval (everyMinute, 60000); 
+						everyMinute ();
+						});
+					if (callback !== undefined) {
+						callback ();
+						}
+					});
 				}
 			});
 		});
