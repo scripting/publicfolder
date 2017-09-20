@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.4.22";    
+var myProductName = "publicFolder", myVersion = "0.4.23";    
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2017 Dave Winer
@@ -79,6 +79,15 @@ function consoleMsg (s) {
 	config.debugMessageCallback (s);
 	console.log (s);
 	}
+function getFileStats (f) {
+	try {
+		return (fs.statSync (f));
+		}
+	catch (err) {
+		consoleMsg ("getFileStats: err.message == " + err.message);
+		return (undefined);
+		}
+	}
 function viewStats () {
 	config.viewStatsCallback (watchLog.stats);
 	}
@@ -143,16 +152,36 @@ function okToUpload (f) {
 	}
 function okToReportUpload (relpath, callback) {
 	s3.getObjectMetadata (config.s3Folder + relpath, function (s3Stats) {
-		let localStats = fs.statSync (config.watchFolder + relpath);
-		if (callback !== undefined) {
-			let flMatch = s3Stats.ContentLength == localStats.size;
-			callback (flMatch && (localStats.size != 0));
+		if (s3Stats == null) {
+			if (callback !== undefined) {
+				callback (false);
+				}
+			}
+		else {
+			let localStats = getFileStats (config.watchFolder + relpath); //9/20/17 by DW
+			if (localStats === undefined) {
+				if (callback !== undefined) {
+					callback (false);
+					}
+				}
+			else {
+				
+				if (callback !== undefined) {
+					let flMatch = s3Stats.ContentLength == localStats.size;
+					callback (flMatch && (localStats.size != 0));
+					}
+				}
 			}
 		});
 	}
 function getFileSizeString (localpath) {
-	let stats = fs.statSync (localpath);
-	return (utils.gigabyteString (stats.size));
+	let stats = getFileStats (localpath);
+	if (stats === undefined) {
+		return ("");
+		}
+	else {
+		return (utils.gigabyteString (stats.size));
+		}
 	}
 function minutesMessage (when) {
 	let now = new Date ();
@@ -175,15 +204,6 @@ function setFolders (jstruct) {
 	}
 function getUserFilePath (path) {
 	return (config.userDataFolder + path);
-	}
-function getFileStats (f) {
-	try {
-		return (fs.statSync (f));
-		}
-	catch (err) {
-		consoleMsg ("getFileStats: err.message == " + err.message);
-		return (undefined);
-		}
 	}
 
 //log file
@@ -506,16 +526,18 @@ function getFileStats (f) {
 			let ctfiles = 0, ctbytes = 0, whenstart = new Date ();
 			function forEachFile (f) {
 				if (okToUpload (f)) {
-					let stats = fs.statSync (f);
-					localFileStats [utils.stringDelete (f, 1, watchFolder.length)] = {
-						accessed: stats.atime, //when the data was last read
-						modified: stats.mtime, //when one of the stats was changed
-						changed: stats.ctime, //this is the important one
-						created: stats.birthtime,
-						size: stats.size
-						};
-					ctbytes += stats.size;
-					ctfiles++;
+					let stats = getFileStats (f);
+					if (stats !== undefined) {
+						localFileStats [utils.stringDelete (f, 1, watchFolder.length)] = {
+							accessed: stats.atime, //when the data was last read
+							modified: stats.mtime, //when one of the stats was changed
+							changed: stats.ctime, //this is the important one
+							created: stats.birthtime,
+							size: stats.size
+							};
+						ctbytes += stats.size;
+						ctfiles++;
+						}
 					}
 				}
 			localFileStats = {};
@@ -570,17 +592,19 @@ function getFileStats (f) {
 			for (var i = 0; i < list.length; i++) {
 				let fname = list [i], f = folder + fname;
 				if (okToUpload (f)) {
-					let stats = fs.statSync (f);
-					let sub = {
-						text: fname,
-						size: stats.size,
-						created: stats.birthtime,
-						modified: stats.ctime 
-						};
-					subs.push (sub);
-					if (stats.isDirectory ()) {
-						sub.subs = [];
-						visitFolder (f + "/", sub.subs);
+					let stats = getFileStats (f);
+					if (stats !== undefined) {
+						let sub = {
+							text: fname,
+							size: stats.size,
+							created: stats.birthtime,
+							modified: stats.ctime 
+							};
+						subs.push (sub);
+						if (stats.isDirectory ()) {
+							sub.subs = [];
+							visitFolder (f + "/", sub.subs);
+							}
 						}
 					}
 				}
