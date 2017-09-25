@@ -2,9 +2,9 @@
 
 <a href="http://publicfolder.io">publicFolder</a> is a Node app that runs on your desktop and keeps an <a href="https://en.wikipedia.org/wiki/Amazon_S3">Amazon S3</a> location in sync with a folder on a local disk.
 
-This release is the <a href="https://www.npmjs.com/package/publicfolder">package</a> that's at the core of the app. There is also an <a href="http://this.how/publicFolder/">Electron shell</a> for the Mac. 
+This project contains the <a href="https://www.npmjs.com/package/publicfolder">package</a> that's at the core of the app. There is also an <a href="http://this.how/publicFolder/">Electron version</a> for the Mac. 
 
-You can run the publicFolder package today, anywhere Node runs using a small Node app, which is <a href="https://github.com/scripting/publicfolder/tree/master/examples/helloworld">provided</a>.  
+You can run the publicFolder package anywhere Node runs using a small Node app, which is <a href="https://github.com/scripting/publicfolder/tree/master/examples/helloworld">provided</a>.  
 
 ### Who this is for
 
