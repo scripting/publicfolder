@@ -2,9 +2,9 @@
 
 <a href="http://publicfolder.io">publicFolder</a> is a Node app that runs on your desktop and keeps an <a href="https://en.wikipedia.org/wiki/Amazon_S3">Amazon S3</a> location in sync with a folder on a local disk.
 
-This release is the <a href="https://www.npmjs.com/package/publicfolder">package</a> that's at the core of the app, which will eventually ship in an Electron shell for the Mac. 
+This release is the <a href="https://www.npmjs.com/package/publicfolder">package</a> that's at the core of the app. There is also an <a href="http://this.how/publicFolder/">Electron shell</a> for the Mac. 
 
-You can run the publicFolder package today, anywhere Node runs using a small shell app, which is <a href="https://github.com/scripting/publicfolder/tree/master/examples/helloworld">provided</a>.  
+You can run the publicFolder package today, anywhere Node runs using a small Node app, which is <a href="https://github.com/scripting/publicfolder/tree/master/examples/helloworld">provided</a>.  
 
 ### Who this is for
 
@@ -46,7 +46,7 @@ publicFolder has two systems for detecting differences between the version of th
 
 4. For relatively small files, 5MB or smaller, it uploads using a single file read. For larger files, it streams the content of the files to S3. 
 
-5. There's a built-in HTTP server which ships turned off. It's there primarily so the Electron app can get information about what's going on in the main thread to report to the user. You can turn it on by setting config.flHttpEnabled to true.
+5. There's a built-in HTTP server which ships turned off. It's there primarily so the <a href="http://this.how/publicFolder/">Electron app</a> can get information about what's going on in the main thread to report to the user. You can turn it on by setting config.flHttpEnabled to true.
 
 ### History, background
 
