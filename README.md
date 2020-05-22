@@ -6,10 +6,6 @@ This project contains the <a href="https://www.npmjs.com/package/publicfolder">p
 
 You can run the publicFolder package anywhere Node runs using a small Node app, which is <a href="https://github.com/scripting/publicfolder/tree/master/examples/helloworld">provided</a>.  
 
-### Who this is for
-
-This package is for experienced Node developers. There's a <a href="http://this.how/publicFolder/">simple-to-use app</a> for the Mac, useful for non-programmers that builds on this package. 
-
 ### Two locations
 
 You need two places, one local and one on S3.
