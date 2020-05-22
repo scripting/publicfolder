@@ -1,9 +1,9 @@
 {
 	"name": "publicfolder",
 	"description": "A Node app that runs on your desktop and keeps an S3 location in sync with a folder on a local disk.",
-	"author": "Dave Winer <dave@smallpicture.com>",
+	"author": "Dave Winer <dave@scripting.com>",
 	"license": "MIT",
-	"version": "0.4.23",
+	"version": "0.5.3",
 	"main": "publicfolder.js",
 	"repository": {
 		"type": "git",

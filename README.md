@@ -8,7 +8,7 @@ You can run the publicFolder package anywhere Node runs using a small Node app, 
 
 ### Who this is for
 
-We will have a simple-to-use shell soon, but for right now, this package is for experienced Node developers. I'm looking for <a href="https://en.wikipedia.org/wiki/Linus%27s_Law">help</a> validating the software, to be sure it works, before building too much on top of it. I see this as essential system software, something we have to be confident in.
+This package is for experienced Node developers. There's a <a href="http://this.how/publicFolder/">simple-to-use app</a> for the Mac, useful for non-programmers that builds on this package. 
 
 ### Two locations
 
@@ -63,6 +63,12 @@ Another precursor of publicFolder was upstreaming in Radio UserLand, released in
 S3 is a great storage system, it's fast, reliable, inexpensive. Like Dropbox, I wish they had done this project, and made creating a new storage location on S3 as easy as creating a Twitter account (an example, or GMail or Facebook). It's totally possible. 
 
 ### Updates
+
+#### v0.5.2 -- 5/22/20 by DW
+
+New config options, config.s3DefaultAcl. Set it to "private" if the location you're uploading to on S3 is private. It defaults to "public-read."
+
+The status message appears once an hour instead of once a minute. 
 
 #### v0.4.19 -- 9/16/17 by DW
 

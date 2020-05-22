@@ -1,7 +1,7 @@
-var myProductName = "publicFolder", myVersion = "0.4.23";    
+var myProductName = "publicFolder", myVersion = "0.5.3";    
 
 /*  The MIT License (MIT)
-	Copyright (c) 2014-2017 Dave Winer
+	Copyright (c) 2014-2020 Dave Winer
 	
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,6 @@ let config = {
 	s3Folder: undefined,
 	urlS3Folder: undefined,
 	
-	
 	flHttpEnabled: false,
 	httpPort: 1500,
 	
@@ -54,7 +53,9 @@ let config = {
 	flWriteQueue: true,
 	maxLogLength: 500,
 	maxConcurrentThreads: 3,
-	maxSizeForBlockUpload: 1024 * 1024 * 5, //5MB
+	maxSizeForBlockUpload: 1024 * 1024 * 5, //5MB,
+	
+	s3DefaultAcl: "public-read", //5/22/20 by DW -- publicFolder can be used for private buckets, to do so, set this to "private"
 	
 	addToLogCallback: function (theLogItem) {
 		},
@@ -99,7 +100,7 @@ function s3UploadBigFile (f, s3path, type, acl, callback) {
 	let splitpath = s3.splitPath (s3path);
 	
 	if (acl === undefined) {
-		acl = "public-read";
+		acl = config.s3DefaultAcl; //5/22/20 by DW
 		}
 	
 	let myParams = {
@@ -396,7 +397,7 @@ function getUserFilePath (path) {
 										config.uploadDoneCallback (getFileInfoForCallback ()); //9/15/17 by DW
 										}
 									else {
-										s3.newObject (s3path, filedata, type, "public-read", function (err) {
+										s3.newObject (s3path, filedata, type, config.s3DefaultAcl, function (err) {
 											if (err) {
 												consoleMsg ("uploadFile: " + s3path + ", err.message == " + err.message);
 												}
@@ -670,15 +671,17 @@ function getUserFilePath (path) {
 		}
 
 function everyMinute () {
+	let now = new Date ();
 	let addthis = ""
 	if (flConsoleMsgInLastMinute) {
 		flConsoleMsgInLastMinute = false;
 		addthis = "\n";
 		}
-	console.log (addthis + myProductName + " v" + myVersion + ": " + new Date ().toLocaleTimeString () + "." + queueStats () + "\n");
+	if (now.getMinutes () == 0) { //only show message once every hour -- 5/22/20 by DW
+		console.log (addthis + myProductName + " v" + myVersion + ": " + now.toLocaleTimeString () + "." + queueStats () + "\n");
+		}
 	checkFileAndS3Stats ();
 	
-	let now = new Date ();
 	if (!utils.sameDay (watchLog.stats.whenLastEveryMinute, now)) { //date rollover
 		watchLog.stats.ctSecsRunningToday = 0;
 		}
