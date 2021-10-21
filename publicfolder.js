@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.5.5";     
+var myProductName = "publicFolder", myVersion = "0.5.6";     
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2020 Dave Winer
