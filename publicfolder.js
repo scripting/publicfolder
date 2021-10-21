@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.5.3";    
+var myProductName = "publicFolder", myVersion = "0.5.5";     
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2020 Dave Winer
@@ -43,6 +43,7 @@ let config = {
 	
 	flHttpEnabled: false,
 	httpPort: 1500,
+	flAllowAccessFromAnywhere: true, //10/17/21 by DW
 	
 	userDataFolder: "", //defaults to folder containing app
 	logFname: "stats/log.json",
@@ -56,6 +57,9 @@ let config = {
 	maxSizeForBlockUpload: 1024 * 1024 * 5, //5MB,
 	
 	s3DefaultAcl: "public-read", //5/22/20 by DW -- publicFolder can be used for private buckets, to do so, set this to "private"
+	
+	flUploadLog: false, //10/21/21 by DW
+	s3LogPath: "",  //10/21/21 by DW
 	
 	addToLogCallback: function (theLogItem) {
 		},
@@ -233,17 +237,43 @@ function getUserFilePath (path) {
 		actions: new Array ()
 		}
 	var flLogChanged = false;
+	var whenMostRecentLogAction = undefined; //10/21/21 by DW
+	
 	function writeLog (callback) {
 		let f = getUserFilePath (config.logFname);
 		watchLog.stats.ctLogSaves++;
 		watchLog.stats.whenLastLogSave = new Date ();
+		let jsontext = utils.jsonStringify (watchLog);
 		utils.sureFilePath (f, function () {
-			fs.writeFile (f, utils.jsonStringify (watchLog), function (err) {
+			fs.writeFile (f, jsontext, function (err) {
 				if (callback !== undefined) {
 					callback ();
 					}
 				});
 			});
+		if (config.flUploadLog) { //10/21/21 by DW
+			let flupload = true;
+			if (watchLog.actions.length > 0) {
+				let when = watchLog.actions [0].when;
+				if (when == whenMostRecentLogAction) { //hasn't changed
+					flupload = false;
+					}
+				else {
+					whenMostRecentLogAction = when;
+					}
+				}
+			if (flupload) {
+				let whenstart = new Date ();
+				s3.newObject (config.s3LogPath, jsontext, "application/json", config.s3DefaultAcl, function (err) {
+					if (err) {
+						consoleMsg ("writeLog: " + config.s3LogPath + ", err.message == " + err.message);
+						}
+					else {
+						consoleMsg ("writeLog: " + config.s3LogPath + ", secs == " + utils.secondsSince (whenstart));
+						}
+					});
+				}
+			}
 		}
 	function readLog (callback) {
 		let f = getUserFilePath (config.logFname);
@@ -621,7 +651,8 @@ function getUserFilePath (path) {
 	function startHttp () {
 		if (config.flHttpEnabled) {
 			let httpConfig = {
-				port: config.httpPort
+				port: config.httpPort,
+				flAllowAccessFromAnywhere: config.flAllowAccessFromAnywhere //10/17/21 by DW
 				};
 			davehttp.start (httpConfig, function (theRequest) {
 				function dataResponse (data) {
