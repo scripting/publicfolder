@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.5.6";     
+var myProductName = "publicFolder", myVersion = "0.5.7";     
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2020 Dave Winer
@@ -60,6 +60,8 @@ let config = {
 	
 	flUploadLog: false, //10/21/21 by DW
 	s3LogPath: "",  //10/21/21 by DW
+	
+	flDeleteEnabled: true, //11/23/21 by DW
 	
 	addToLogCallback: function (theLogItem) {
 		},
@@ -511,7 +513,9 @@ function getUserFilePath (path) {
 						}
 					break;
 				case "unlink": {
-					addToQueue ("delete", relpath);
+					if (config.flDeleteEnabled) { //11/23/21 by DW
+						addToQueue ("delete", relpath);
+						}
 					break;
 					}
 				}
@@ -750,6 +754,11 @@ function startup (configParam, callback) {
 			}
 		}
 	readConfig (getUserFilePath (fnameConfig), config, function () {
+		 
+		if (config.flDeleteEmabled !== undefined) { //11/23/21 by DW -- correct mis-spelling
+			config.flDeleteEnabled = config.flDeleteEmabled;
+			}
+		
 		console.log ("config == " + utils.jsonStringify (config) + "\n");
 		watchLog.stats.flGoodLaunch = false;
 		startHttp ();
