@@ -1,0 +1,117 @@
+<html>
+	<head>
+		<title>Public Folder</title> 
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"> 
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		
+		<script src="includes/fargo.io/code/storage/api.js"></script>
+		<link href="includes/fargo.io/code/shared/electronland2/lib/electronshell.css" rel="stylesheet" type="text/css">
+		<script src="includes/fargo.io/code/browsers/outlinebrowser.js"></script>
+		<link href="includes/fargo.io/code/browsers/outlinebrowser.css" rel="stylesheet" type="text/css">
+		<script src="includes/scripting.com/code/includes/jquery-1.9.1.min.js"></script>
+		<link href="includes/scripting.com/code/includes/bootstrap.css" rel="stylesheet" type="text/css">
+		<script src="includes/scripting.com/code/includes/bootstrap.min.js"></script>
+		<link href="includes/scripting.com/code/fontawesome/css/all.css" rel="stylesheet" type="text/css">
+		<link href="includes/fargo.io/code/ubuntuFont.css" rel="stylesheet" type="text/css">
+		<link href="includes/fargo.io/code/ranchoFont.css" rel="stylesheet" type="text/css">
+		<script src="includes/scripting.com/code/includes/basic/code.js"></script>
+		<link href="includes/scripting.com/code/includes/basic/styles.css" rel="stylesheet" type="text/css">
+		
+		<script src="homepage.js?x=0"></script>
+		<link rel="stylesheet" href="homepage.css?x=0"/>
+		
+		</head>
+	<body>
+		<div class="divSettingsDialog">
+			<div id="idSettingsDialog" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="windowTitleLabel" aria-hidden="true">
+				<div class="modal-body">
+					<div class="divDialogElements">
+						<form method="POST">
+	<div class="divTabsFromOutline">
+	<div class="tabbable">
+		<ul class="nav nav-tabs" data-tabs="tabs">
+			<li class="active" ><a href="#idOnS720"  data-toggle="tab">On S3</a></li>
+			</ul>
+		<div id="my-tab-content" class="tab-content">
+			<div class="active tab-pane" id="idOnS720">
+				<fieldset>
+					<div class="divPrefs">	<div class="clearfix">	<label for="s3FolderPath">Path:</label>	<div class="input">		<input class="xlarge prefsInput" id="s3FolderPath" name="s3FolderPath" size="50" type="text" value="" placeholder="The path to the storage location on S3." />		</div>	</div><div class="clearfix">	<label for="urlS3Folder">URL:</label>	<div class="input">		<input class="xlarge prefsInput" id="urlS3Folder" name="urlS3Folder" size="50" type="text" value="" placeholder="The URL to use for the S3 location." />		</div>	</div>	</div>
+					</fieldset>
+						</div>
+					</div>
+				</div>
+			</div>
+
+	</form>
+ 
+						</div>
+					</div>
+				<div class="modal-footer">
+					<a href="#" class="btn" onclick="shell.closeSettingsDialog ();">Cancel</a>
+					<a href="#" class="btn btn-primary" onclick="shell.okSettingsDialog ();">OK</a>
+					</div>
+				</div>
+			</div>
+		<div class="divMenubar" id="idMenubar">
+			<div class="topbar-wrapper">
+				<div class="navbar navbar-fixed-top" data-dropdown="dropdown">
+					<div class="divVersionNumber" id="idVersionNumber"></div>
+					<div class="navbar-inner">
+						<div class="container">
+							<a class="brand" href="/"><span id="idMenuProductName"></span></a>
+							<ul class="nav" id="idMainMenuList">
+								<li class="dropdown" id="idMainMenu"> 
+									<a href="#" class="dropdown-toggle" data-toggle="dropdown">Menu&nbsp;<b class="caret"></b></a>
+									<ul class="dropdown-menu">
+										<li><a onclick="openWatchFolder ();">Open watch folder...</a></li>
+										<li><a onclick="shell.openUserDataFolder ();">Open data folder...</a></li>
+										</ul>
+									</li>
+								<li class="dropdown" id="idDocsMenu"> 
+									<a href="#" class="dropdown-toggle" data-toggle="dropdown">Docs&nbsp;<b class="caret"></b></a>
+									<ul class="dropdown-menu">
+										<li><a href="http://this.how/publicFolder/">Howto...</a></li>
+										<li><a href="https://github.com/scripting/publicfolder">Source...</a></li>
+										</ul>
+									</li>
+								</ul>
+							<ul class="nav pull-right" style="display: none">
+								<li class="dropdown">
+									<a href="#" class="dropdown-toggle" data-toggle="dropdown"><span id="idTwitterIcon"></span><span id="idTwitterUsername"></span>&nbsp;<b class="caret"></b></a>
+									<ul class="dropdown-menu">
+										<li><a onclick="aboutSystemMenu ();">About this menu...<span id="idMenuAboutProductName" style="display: none;"></span></a></li>
+										<li class="divider"></li>
+										<li class="disabled"><a onclickx="openSettingsDialog ();">Settings...</a></li>
+										<li class="divider"></li>
+										<li class="disabled"><a onclickx="shell.toggleTwitterConnect ();" id="idTwitterConnectMenuItem"></a></li>
+										</ul>
+									</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		<div class="divPageBody" id="idPageBody">
+			<div class="divStats" id="idStats" style="display: none;">
+				<p>Server up since: <span  id="idWhenLaunch"></span>.</p>
+				<p><span id="idCurrentThreads"></span> files being processed, <span id="idFilesInQueue"></span> files in queue.</p>
+				<p>Folder size: <span id="idCtLocalFiles"></span> files, <span  id="idFolderSizeLocal"></span> (local). <span id="idCtS3Files"></span> files, <span id="idFolderSizeS3"></span> (on S3).</p>
+				<p>Uploads: <span  id="idCtUploads"></span> files, <span id="idCtBytesUploaded"></span>. Deletes: <span id="idCtDeletes"></span>.</p>
+				</div>
+			<div class="divLog" id="idLog">
+				</div>
+			<div class="divQueueLength" id="idQueueLength" style="display: none;">
+				</div>
+			<div class="divUploadingNow" id="idUploadingNow" style="display: none;">
+				</div>
+			<div class="divOutlineDisplayer" id="idOutlineDisplayer" style="display: none;">
+				</div>
+			</div>
+		<script>
+			$(document).ready (function () {
+				startup ();
+				});
+			</script>
+		</body>
+	</html>

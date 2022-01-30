@@ -1,0 +1,13 @@
+{
+	"name": "electronPublicFolder",
+	"version": "0.4.6",
+	"description": "An Electron shell for the publicfolder package.",
+	"author": "Dave Winer <dave@smallpicture.com>",
+	"main": "main.js",
+	"dependencies" : {
+		"publicfolder": "*",
+		"daveutils": "*",
+		"userhome": "*",
+		"electronland": "*"
+		}
+	}

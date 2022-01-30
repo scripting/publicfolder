@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<opml version="2.0">
+	<head>
+		<title>settings.opml</title>
+		<dateModified>&lt;%dateModified%></dateModified>
+		<expansionState></expansionState>
+		<vertScrollState>1</vertScrollState>
+		<windowTop>300</windowTop>
+		<windowLeft>700</windowLeft>
+		<windowBottom>900</windowBottom>
+		<windowRight>1500</windowRight>
+		</head>
+	<body text="settings.opml">
+		<outline created="Sat, 15 Jun 2013 22:00:35 GMT" pgfnum="26413" text="On S3">
+			<outline text="&lt;%prefs.stringPref (&quot;Path&quot;, &quot;s3FolderPath&quot;, &quot;The path to the storage location on S3.&quot;)%&gt;"></outline>
+			<outline text="&lt;%prefs.stringPref (&quot;URL&quot;, &quot;urlS3Folder&quot;, &quot;The URL to use for the S3 location.&quot;)%&gt;"></outline>
+			</outline>
+		</body>
+	</opml>
