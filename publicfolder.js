@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.5.7";     
+var myProductName = "publicFolder", myVersion = "0.5.8";     
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2020 Dave Winer
@@ -450,7 +450,7 @@ function getUserFilePath (path) {
 									});
 								}
 							else {
-								s3UploadBigFile (localpath, s3path, type, "public-read", function (err, data) {
+								s3UploadBigFile (localpath, s3path, type, config.s3DefaultAcl, function (err, data) { //9/21/22 by DW
 									if (err) {
 										consoleMsg ("uploadFile: err.message == " + err.message); 
 										}

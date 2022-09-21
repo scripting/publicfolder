@@ -60,6 +60,10 @@ S3 is a great storage system, it's fast, reliable, inexpensive. Like Dropbox, I 
 
 ### Updates
 
+#### v0.5.8 -- 9/21/22 by DW
+
+When uploading a big file we were using "public-read" as the ACL, ignoring the setting, which would cause big uploads to fail if you're working with private data. 
+
 #### v0.5.2 -- 5/22/20 by DW
 
 New config options, config.s3DefaultAcl. Set it to "private" if the location you're uploading to on S3 is private. It defaults to "public-read."
