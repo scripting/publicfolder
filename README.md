@@ -60,6 +60,12 @@ S3 is a great storage system, it's fast, reliable, inexpensive. Like Dropbox, I 
 
 ### Updates
 
+#### v0.5.9 -- 9/22/22 by DW
+
+Apparently Chokidar will emit "unlink" events for files that exist! 
+
+Added a check before deleting a file, if it exists locally, we don't delete it on S3.
+
 #### v0.5.8 -- 9/21/22 by DW
 
 When uploading a big file we were using "public-read" as the ACL, ignoring the setting, which would cause big uploads to fail if you're working with private data. 

@@ -1,4 +1,4 @@
-var myProductName = "publicFolder", myVersion = "0.5.8";     
+var myProductName = "publicFolder", myVersion = "0.5.9";     
 
 /*  The MIT License (MIT)
 	Copyright (c) 2014-2022 Dave Winer
@@ -473,14 +473,17 @@ function getUserFilePath (path) {
 					}
 				}
 			function deleteFile (relpath) {
-				let s3path = config.s3Folder + relpath;
-				let whenstart = new Date ();
-				upThreadCount ();
-				s3.deleteObject (s3path, function (err) {
-					downThreadCount ();
-					consoleMsg ("deleteFile: " + s3path + ", " + utils.secondsSince (whenstart) + " secs.");
-					addToLog ("delete", relpath, undefined, whenstart, undefined);
-					});
+				let localpath = config.watchFolder + relpath; //9/22/22 by DW
+				if (!fs.existsSync (localpath)) { //9/22/22 by DW -- don't delete files that exist!
+					let s3path = config.s3Folder + relpath;
+					let whenstart = new Date ();
+					upThreadCount ();
+					s3.deleteObject (s3path, function (err) {
+						downThreadCount ();
+						consoleMsg ("deleteFile: " + s3path + ", " + utils.secondsSince (whenstart) + " secs.");
+						addToLog ("delete", relpath, undefined, whenstart, undefined);
+						});
+					}
 				}
 			switch (next.op) {
 				case "upload":
