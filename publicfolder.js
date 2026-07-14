@@ -1,7 +1,7 @@
-var myProductName = "publicFolder", myVersion = "0.5.9";     
+var myProductName = "publicFolder", myVersion = "0.5.12";     
 
 /*  The MIT License (MIT)
-	Copyright (c) 2014-2022 Dave Winer
+	Copyright (c) 2014-2026 Dave Winer
 	
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
@@ -84,7 +84,7 @@ var flDidSomethingSinceLastFileScan = false; //9/17/17 by DW
 function consoleMsg (s) {
 	flConsoleMsgInLastMinute = true;
 	config.debugMessageCallback (s);
-	console.log (s);
+	console.log (new Date ().toLocaleTimeString () + ": " + s); //7/26/23 by DW
 	}
 function getFileStats (f) {
 	try {
@@ -526,6 +526,8 @@ function getUserFilePath (path) {
 		}
 //non-chokidar scanning
 	var s3FileStats, localFileStats;
+	var flScanInProgress = false, whenLastScanStarted = undefined; //7/14/26 by DW
+	const maxSecsScan = 60 * 10; //ten minutes -- 7/14/26 by DW
 	
 	function getS3FileStats (s3path, callback) {
 		if (s3path !== undefined) {
@@ -595,32 +597,42 @@ function getUserFilePath (path) {
 				});
 			}
 		}
-	function checkFileAndS3Stats () {
-		if ((queue.length == 0) && (ctConcurrentThreads == 0)) {
-			flDidSomethingSinceLastFileScan = false;
-			getLocalFilestats (config.watchFolder, function () {
-				getS3FileStats (config.s3Folder, function () {
-					for (var x in localFileStats) {
-						if (s3FileStats [x] === undefined) {
-							if (okToUpload (x)) {
-								consoleMsg ("The file \"" + x + "\" is not present in the S3 folder.");
-								addToQueue ("upload", x);
+	function checkFileAndS3Stats (callback) {
+		if (utils.secondsSince (whenLastScanStarted) >= maxSecsScan) { //7/14/26 by DW
+			flScanInProgress = false;
+			}
+		if (!flScanInProgress) { //7/14/26 by DW
+			if ((queue.length == 0) && (ctConcurrentThreads == 0)) {
+				flDidSomethingSinceLastFileScan = false;
+				flScanInProgress = true; //7/14/26 by DW
+				whenLastScanStarted = new Date ();
+				getLocalFilestats (config.watchFolder, function () {
+					getS3FileStats (config.s3Folder, function () {
+						for (var x in localFileStats) {
+							if (s3FileStats [x] === undefined) {
+								if (okToUpload (x)) {
+									addToQueue ("upload", x);
+									}
+								}
+							else {
+								if (dateGreater (localFileStats [x].modified, s3FileStats [x].modified)) {
+									consoleMsg ("The local file \"" + x + "\" has been modified.");
+									addToQueue ("upload", x);
+									}
 								}
 							}
-						else {
-							if (dateGreater (localFileStats [x].modified, s3FileStats [x].modified)) {
-								consoleMsg ("The local file \"" + x + "\" has been modified.");
-								addToQueue ("upload", x);
+						for (var x in s3FileStats) {
+							if (localFileStats [x] === undefined) {
+								addToQueue ("delete", x);
 								}
 							}
-						}
-					for (var x in s3FileStats) {
-						if (localFileStats [x] === undefined) {
-							addToQueue ("delete", x);
+						flScanInProgress = false; //7/14/26 by DW
+						if (callback !== undefined) { //4/14/23 by DW
+							callback ();
 							}
-						}
+						});
 					});
-				});
+				}
 			}
 		}
 //folder to outline
@@ -699,6 +711,15 @@ function getUserFilePath (path) {
 						break;
 					case "/s3files":
 						dataResponse (s3FileStats);
+						break;
+					case "/checkfilesnow": //4/14/23 by DW
+						checkFileAndS3Stats (function () {
+							const data = {
+								queueLength: queue.length,
+								ctConcurrentThreads
+								};
+							dataResponse (data);
+							});
 						break;
 					default:
 						notFoundResponse ();

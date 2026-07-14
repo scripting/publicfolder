@@ -1,7 +1,7 @@
-var myProductName = "publicFolder", myVersion = "0.5.7";     
+var myProductName = "publicFolder", myVersion = "0.5.10";     
 
 /*  The MIT License (MIT)
-	Copyright (c) 2014-2020 Dave Winer
+	Copyright (c) 2014-2022 Dave Winer
 	
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
@@ -450,7 +450,7 @@ function getUserFilePath (path) {
 									});
 								}
 							else {
-								s3UploadBigFile (localpath, s3path, type, "public-read", function (err, data) {
+								s3UploadBigFile (localpath, s3path, type, config.s3DefaultAcl, function (err, data) { //9/21/22 by DW
 									if (err) {
 										consoleMsg ("uploadFile: err.message == " + err.message); 
 										}
@@ -473,14 +473,17 @@ function getUserFilePath (path) {
 					}
 				}
 			function deleteFile (relpath) {
-				let s3path = config.s3Folder + relpath;
-				let whenstart = new Date ();
-				upThreadCount ();
-				s3.deleteObject (s3path, function (err) {
-					downThreadCount ();
-					consoleMsg ("deleteFile: " + s3path + ", " + utils.secondsSince (whenstart) + " secs.");
-					addToLog ("delete", relpath, undefined, whenstart, undefined);
-					});
+				let localpath = config.watchFolder + relpath; //9/22/22 by DW
+				if (!fs.existsSync (localpath)) { //9/22/22 by DW -- don't delete files that exist!
+					let s3path = config.s3Folder + relpath;
+					let whenstart = new Date ();
+					upThreadCount ();
+					s3.deleteObject (s3path, function (err) {
+						downThreadCount ();
+						consoleMsg ("deleteFile: " + s3path + ", " + utils.secondsSince (whenstart) + " secs.");
+						addToLog ("delete", relpath, undefined, whenstart, undefined);
+						});
+					}
 				}
 			switch (next.op) {
 				case "upload":
@@ -592,7 +595,7 @@ function getUserFilePath (path) {
 				});
 			}
 		}
-	function checkFileAndS3Stats () {
+	function checkFileAndS3Stats (callback) {
 		if ((queue.length == 0) && (ctConcurrentThreads == 0)) {
 			flDidSomethingSinceLastFileScan = false;
 			getLocalFilestats (config.watchFolder, function () {
@@ -615,6 +618,9 @@ function getUserFilePath (path) {
 						if (localFileStats [x] === undefined) {
 							addToQueue ("delete", x);
 							}
+						}
+					if (callback !== undefined) { //4/14/23 by DW
+						callback ();
 						}
 					});
 				});
@@ -696,6 +702,15 @@ function getUserFilePath (path) {
 						break;
 					case "/s3files":
 						dataResponse (s3FileStats);
+						break;
+					case "/checkfilesnow": //4/14/23 by DW
+						checkFileAndS3Stats (function () {
+							const data = {
+								queueLength: queue.length,
+								ctConcurrentThreads
+								};
+							dataResponse (data);
+							});
 						break;
 					default:
 						notFoundResponse ();
